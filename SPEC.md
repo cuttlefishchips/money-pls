@@ -75,7 +75,7 @@ Accounts, logins, bank connections, account lists, categories, several goals, pr
 1. **Choose a route.** "What would make the next few years feel good?" Options: a few things in my life, one specific thing, not sure yet.
 2. **Pick areas** (route 1 only). Pick up to three of: Work, Home, Health, Family care, Education, Experiences, Everyday living, Giving and legacy. Each has a one-line description.
 3. **Price each one.** Name in their own words, rough cost, one-off or monthly. Prompt: think of the last time you paid for something similar. No example price ranges. Route 2 enters one item here.
-4. **Set a date.** One date for all one-off items.
+4. **Set a date.** One month and year for all one-off items, picked with a month and year picker. The target date `T` is the last day of that month.
 5. **Starting numbers.** Take-home pay per month, fixed costs per month including everyday essentials (show what counts: rent or mortgage, bills, insurance, groceries, transport, other essentials), and savings set aside for this. "Roughly is fine."
 6. **See the result.** Target, monthly amount, target date and daily number, or the floor and split for route 3. Every cost and the date can be edited. Then Accept, then a link to the rating form (URL configurable).
 
@@ -92,12 +92,12 @@ Put all of this in a pure module (`src/calc/`) with unit tests. Screens call it 
 - `F` fixed costs per month, including everyday essentials
 - `S` savings set aside for the target
 - One-off items `O_i`, monthly items `M_j`
-- Target date `T`, today `t`
+- Target date `T` (last day of the chosen month), today `t`
 - `spent` = sum of optional spends logged in the current calendar month
 
 ### Target route (routes 1 and 2)
 - `target = Σ O_i`
-- `n` = whole months from the start month to `T`, minimum 1
+- `n` = whole months from the start month to `T`, counting the start month and the month of `T`, minimum 1. Example: start in October, `T` in December, `n = 3`.
 - `A` (monthly amount) = `max(0, target − S) / n`
 - `M` = `Σ M_j` (monthly upgrades, which come off spending from now on)
 - `B` (monthly safe-to-spend) = `P − F − A − M`
@@ -105,18 +105,24 @@ Put all of this in a pure module (`src/calc/`) with unit tests. Screens call it 
 ### Floor route (route 3)
 - `floor = 3 × F` (adjustable)
 - `A = min(0.2 × P, P − F)`, which is saved towards the floor
+- If `P < F`, `A = 0` and the person is asked to check their numbers, as on the target route.
 - `B = P − F − A`
 - Show the split as needs (`F`), spending (`B`) and saving (`A`), labelled as a starting point to adjust.
 
 ### Daily number
 - `days_left` = days left in the month, including today
 - `daily = (B − spent) / days_left`
-- In the first month, prorate: `B_first = B × days_left_at_start / days_in_month`.
+- In the first month, prorate: `B_first = B × days_left_at_start / days_in_month`. The first month's daily number and pace use `B_first` in place of `B`, with the month treated as starting on the set-up day (so `days_in_month` becomes `days_left_at_start` and `days_elapsed` counts from the set-up day).
 
 ### Pace and permission (stories 7 and 11)
 - `even_share = B × days_elapsed / days_in_month`, where `days_elapsed` includes today
 - Ahead when `spent < even_share − B / days_in_month`. Show "free to enjoy" = `even_share − spent`.
-- Over when `spent > B`. Target date delay in weeks = `(spent − B) / A × 4.35`, rounded to the nearest week. Not shown on the floor route, or when `A = 0`.
+- Over when `spent > B`. Target date delay in weeks = `(spent − B) / A × 4.35`, rounded up to the next whole week. Not shown on the floor route, or when `A = 0`.
+
+### Rounding
+- All amounts are stored and calculated in whole cents.
+- The daily number and "free to enjoy" are rounded down to the cent, so they never overstate what is available.
+- The target date delay is rounded up to the next whole week.
 
 ### Edge cases
 - `B < 0` at set-up: if `P − F − M > 0`, show the earliest workable date, `n_min = ceil((target − S) / (P − F − M))` months, and let the person choose that date or trim items. Otherwise ask them to trim monthly items or check their numbers.
@@ -133,7 +139,7 @@ Store in a separate usage log. Every event has `{ v: 1, code, type, ts }` plus o
 |---|---|---|
 | `session` | `duration_s` | when a session ends (page hidden or closed) |
 | `spend_logged` | none | each optional spend saved |
-| `budget_viewed` | none | the daily number or target date is shown on screen |
+| `budget_viewed` | none | once per screen visit that shows the daily number or target date, and again when the app returns to the foreground on that screen |
 | `start_route` | `route`: `areas`, `one`, `none` | once, at set-up step 1 |
 | `target_decision` | `decision`: `accepted`, `adjusted`, `rejected` | at set-up step 6, and when a target is later changed |
 | `target_set_later` | none | a floor-route person later sets a target |
@@ -164,6 +170,14 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 
 ## 9. Open items to confirm while building
 
-- Rating form URL (story 16).
-- Short description for the manifest. The app name is Money Pls.
-- Whether to prorate the first month (section 5 assumes yes).
+- Rating form URL (story 16). A placeholder is used until confirmed.
+- Short description for the manifest. The app name is Money Pls. A placeholder is used until confirmed.
+
+## 10. Decisions confirmed while building
+
+- 2026-10-20: `n` counts the start month. The target date is picked as a month and year and means the end of that month.
+- 2026-10-20: The first month is prorated, and its daily number and pace use `B_first`.
+- 2026-10-20: On the floor route, `P < F` gives `A = 0` with the "check your numbers" message.
+- 2026-10-20: Transfers and card bill payments are excluded by one line of copy on the logging screen, with no toggle or category.
+- 2026-10-20: `budget_viewed` fires once per screen visit, and again when the app returns to the foreground on that screen.
+- 2026-10-20: Amounts are in cents. The daily number and "free to enjoy" round down, and the target date delay rounds up.
