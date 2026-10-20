@@ -3,7 +3,6 @@ import { assertCents, ceilDiv } from './money';
 
 export interface Item {
   costCents: number;
-  kind: 'one-off' | 'monthly';
 }
 
 export interface TargetInputs {
@@ -12,15 +11,14 @@ export interface TargetInputs {
   savingsCents: number;
   items: Item[];
   startMonth: YearMonth;
-  targetMonth: YearMonth | null;
+  targetMonth: YearMonth;
 }
 
 export interface TargetPlan {
   targetCents: number;
-  months: number | null;
-  targetDate: CalDate | null;
+  months: number;
+  targetDate: CalDate;
   monthlyAmountCents: number;
-  monthlyUpgradesCents: number;
   safeToSpendCents: number;
 }
 
@@ -42,24 +40,8 @@ export function planTarget(inputs: TargetInputs): TargetResult {
   assertCents('savingsCents', S);
   inputs.items.forEach((item, i) => assertCents(`items[${i}].costCents`, item.costCents));
 
-  const target = sum(inputs.items, 'one-off');
-  const M = sum(inputs.items, 'monthly');
-  const spare = P - F - M;
-
-  if (target === 0) {
-    if (spare < 0) return { kind: 'check-numbers' };
-    return {
-      kind: 'ok',
-      targetCents: 0,
-      months: null,
-      targetDate: null,
-      monthlyAmountCents: 0,
-      monthlyUpgradesCents: M,
-      safeToSpendCents: spare,
-    };
-  }
-
-  if (!inputs.targetMonth) throw new Error('A target month is needed when there are one-off items');
+  const target = inputs.items.reduce((total, item) => total + item.costCents, 0);
+  const spare = P - F;
   const n = monthsToTarget(inputs.startMonth, inputs.targetMonth);
   const stillNeeded = Math.max(0, target - S);
   const A = ceilDiv(stillNeeded, n);
@@ -81,11 +63,6 @@ export function planTarget(inputs: TargetInputs): TargetResult {
     months: n,
     targetDate: endOfMonth(inputs.targetMonth),
     monthlyAmountCents: A,
-    monthlyUpgradesCents: M,
     safeToSpendCents: B,
   };
-}
-
-function sum(items: Item[], kind: Item['kind']): number {
-  return items.filter((item) => item.kind === kind).reduce((total, item) => total + item.costCents, 0);
 }

@@ -16,7 +16,7 @@
    - Each build step ships as its own pull request.
    - The prorated first-month budget is rounded down to the cent, in line with never overstating what is available.
    - The monthly amount set aside is rounded up to the cent on both routes, so the target is always reached and spending is never overstated.
-   - When fixed costs and monthly upgrades leave nothing to spend from take-home pay, the tool says so and asks the person to adjust their numbers or remove a monthly item, even if savings already cover the target. The floor route uses the same message without monthly items. One wording covers costs equal to pay and costs above it. The message does not assume a mistake, because students and NSFs can genuinely have costs above their allowance.
+   - When fixed costs leave nothing to spend from take-home pay, the tool says so and asks the person to adjust their numbers, even if savings already cover the target. One wording covers costs equal to pay and costs above it. The message does not assume a mistake, because students and NSFs can genuinely have costs above their allowance.
    - Spending above an even share but inside the month's budget is shown as "Within this month's budget", never "behind" or "on track".
    - The participant code is stored on the phone the first time a link is opened, and the app refuses to start only if no code has ever been stored. This is because an app installed on Android opens without the code in its address. The code still never reaches the server.
    - If a link with a different code is opened later, the app asks before switching. Entries on the phone stay as they are, and only new usage events carry the new code.
@@ -27,3 +27,5 @@
    - Set-up has two routes, "I've got things in mind" and "Not sure yet", replacing three. "A few things" and "one specific thing" were the same flow with a different count, so picking one item now covers the single-goal case.
    - Step 2 asks "What do you want money for in the next few years?" with concrete item chips (Travel, Wedding, Home, Further studies, Career break, Big purchase, Emergency fund, Supporting family, A better everyday life, Something else) in place of eight abstract life areas. Each item has a pre-set one-off or monthly type that the person can change on the next screen.
    - The `start_route` usage event now takes `items` or `none`. The event version stays at 1, because no participant data had been collected yet.
+   - Step 2 now asks "What are you saving up for?", and every item is one-off: Travel, First home, Emergency fund, Wedding, Further studies, Career break, Big purchase, Something else.
+   - Monthly items are removed from set-up and the calculation. They double-counted: ongoing costs like supporting family are already in fixed costs, and ongoing spending like eating out is already what the daily number covers. Supporting family is now named in the fixed costs helper text instead.

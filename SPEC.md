@@ -73,16 +73,13 @@ Accounts, logins, bank connections, account lists, categories, several goals, pr
 ## 4. Set-up flow (stories 1 to 5 and 16)
 
 1. **Choose a route.** "What would make the next few years feel good?" Options: "I've got things in mind" and "Not sure yet".
-2. **Pick items** ("I've got things in mind" only). Question: "What do you want money for in the next few years?" Hint: "Pick all that apply. You'll put a rough price on each next." Multi-select chips, each with a pre-set type:
-   - One-off: Travel, Wedding, Home (BTO, renovation, moving out), Further studies, Career break, Big purchase (car, gadgets), Emergency fund.
-   - Monthly: Supporting family, A better everyday life (eating out, hobbies).
-   - Something else, where the person types their own name. It starts as one-off.
-3. **Price each one.** Each picked item arrives with its name pre-filled and editable, and one-off or monthly pre-set and changeable. Enter a rough cost. Prompt: think of the last time you paid for something similar. No example price ranges.
+2. **Pick items** ("I've got things in mind" only). Question: "What are you saving up for?" Hint: "Pick all that apply. You'll put a rough price on each next." Multi-select chips, all one-off: Travel, First home (BTO, renovation, moving out), Emergency fund, Wedding, Further studies, Career break, Big purchase (car, gadgets), and Something else, where the person types their own name.
+3. **Price each one.** Each picked item arrives with its name pre-filled and editable. Enter a rough cost. Prompt: think of the last time you paid for something similar. No example price ranges.
 4. **Set a date.** One month and year for all one-off items, picked with a month and year picker. The target date `T` is the last day of that month.
-5. **Starting numbers.** Take-home pay per month, fixed costs per month including everyday essentials (show what counts: rent or mortgage, bills, insurance, groceries, transport, other essentials), and savings set aside for this. "Roughly is fine."
+5. **Starting numbers.** Take-home pay per month, fixed costs per month including everyday essentials (show what counts: rent or mortgage, bills, insurance, groceries, transport, supporting family, other essentials), and savings set aside for this. "Roughly is fine."
 6. **See the result.** Target, monthly amount, target date and daily number, or the floor and split for "Not sure yet". Every cost and the date can be edited. Then Accept, then a link to the rating form (URL configurable).
 
-"Not sure yet" goes 1 → 5 → 6. "I've got things in mind" goes 1 → 2 → 3 → 4 → 5 → 6, and skips step 4 when every item is monthly.
+"Not sure yet" goes 1 → 5 → 6. "I've got things in mind" goes 1 → 2 → 3 → 4 → 5 → 6.
 
 Set-up progress is saved on the device, so leaving part-way resumes where the person stopped.
 
@@ -94,7 +91,7 @@ Put all of this in a pure module (`src/calc/`) with unit tests. Screens call it 
 - `P` take-home pay per month
 - `F` fixed costs per month, including everyday essentials
 - `S` savings set aside for the target
-- One-off items `O_i`, monthly items `M_j`
+- Items `O_i`, all one-off
 - Target date `T` (last day of the chosen month), today `t`
 - `spent` = sum of optional spends logged in the current calendar month
 
@@ -102,8 +99,7 @@ Put all of this in a pure module (`src/calc/`) with unit tests. Screens call it 
 - `target = Σ O_i`
 - `n` = whole months from the start month to `T`, counting the start month and the month of `T`, minimum 1. Example: start in October, `T` in December, `n = 3`.
 - `A` (monthly amount) = `max(0, target − S) / n`
-- `M` = `Σ M_j` (monthly upgrades, which come off spending from now on)
-- `B` (monthly safe-to-spend) = `P − F − A − M`
+- `B` (monthly safe-to-spend) = `P − F − A`
 
 ### Floor route ("Not sure yet")
 - `floor = 3 × F` (adjustable)
@@ -128,9 +124,8 @@ Put all of this in a pure module (`src/calc/`) with unit tests. Screens call it 
 - The target date delay is rounded up to the next whole week.
 
 ### Edge cases
-- `B < 0` at set-up: if `P − F − M > 0`, show the earliest workable date, `n_min = ceil((target − S) / (P − F − M))` months, and let the person choose that date or trim items. Otherwise ask them to trim monthly items or check their numbers.
+- `B < 0` at set-up: if `P − F > 0`, show the earliest workable date, `n_min = ceil((target − S) / (P − F))` months, and let the person choose that date or trim items. Otherwise ask them to check their numbers.
 - `target ≤ S`: say savings already cover it, and offer to raise the target or start from the floor.
-- Only monthly items, so `target = 0`: no target date. The daily number still reflects the upgrades.
 - `daily ≤ 0`: show that this month's spending is used up, kindly, with the target date effect if any.
 - No entries for some days: show "not logged" for those days, and the time the number was last updated.
 
@@ -192,11 +187,11 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 - 2026-10-20: Amounts are in cents. The daily number and "free to enjoy" round down, and the target date delay rounds up.
 - 2026-10-20: The prorated first-month budget `B_first` is rounded down to the cent.
 - 2026-10-20: The monthly amount `A` is rounded up to the cent on both routes, so the target is always reached and spending is never overstated.
-- 2026-10-20: When `P − F − M ≤ 0`, the target route shows this message even if savings cover the target: "Your fixed costs and monthly upgrades leave nothing to spend from your take-home pay. If that's right, the tool can't set a spending amount yet. You can adjust your numbers or remove a monthly item." The same wording covers costs equal to pay and costs above it. The copy must not assume a mistake, because students and NSFs can genuinely have costs above their allowance.
-- 2026-10-20: When `P < F` on the floor route, it shows: "Your fixed costs leave nothing to spend from your take-home pay. If that's right, the tool can't set a spending amount yet. You can adjust your numbers."
+- 2026-10-20: When fixed costs leave nothing to spend (`P − F ≤ 0` on the target route, even if savings cover the target, or `P < F` on the floor route), both routes show: "Your fixed costs leave nothing to spend from your take-home pay. If that's right, the tool can't set a spending amount yet. You can adjust your numbers." The same wording covers costs equal to pay and costs above it. The copy must not assume a mistake, because students and NSFs can genuinely have costs above their allowance.
 - 2026-10-20: Pace between "ahead" and "over" is shown as "Within this month's budget", never "behind" or "on track".
 - 2026-10-20: The participant code is stored on the phone the first time a link is opened. The app refuses to start only if no code has ever been stored. A link with a different code asks before switching, and entries on the phone are kept.
 - 2026-10-20: Participant codes are 1 to 12 letters or numbers, treated as upper case.
 - 2026-10-20: The organiser's code is ORG1. Leave ORG1 out of analysis by filtering on the `code` field or the export file name.
 - 2026-10-20: Accent red is used only for the one main button on a screen and the app icon, and never as a status. Over-budget uses the care tint.
 - 2026-10-20: Set-up has two routes, "I've got things in mind" and "Not sure yet". The areas list and the one-item route are replaced by concrete item chips with a pre-set type. `start_route` takes `items` or `none`.
+- 2026-10-20: All items are one-off. Monthly items and `M` are removed, so `B = P − F − A`. Supporting family is counted in fixed costs at step 5.
