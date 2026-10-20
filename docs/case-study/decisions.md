@@ -24,4 +24,6 @@
    - The organiser uses the code ORG1. Every usage event and the export file name carry the code, so the organiser's data can be left out of analysis by filtering on ORG1.
    - The browser theme colour uses the board colour, and the app icon is "MP" on the accent colour, so the installed app matches the design tokens.
    - Accent red is used only for the one main button on a screen and the app icon, and never as a status. Over-budget uses the care tint. This keeps red from reading as alarm next to money, in line with kind, non-judgemental copy.
-   - The eight area descriptions on set-up step 2 are drafts for review.
+   - Set-up has two routes, "I've got things in mind" and "Not sure yet", replacing three. "A few things" and "one specific thing" were the same flow with a different count, so picking one item now covers the single-goal case.
+   - Step 2 asks "What do you want money for in the next few years?" with concrete item chips (Travel, Wedding, Home, Further studies, Career break, Big purchase, Emergency fund, Supporting family, A better everyday life, Something else) in place of eight abstract life areas. Each item has a pre-set one-off or monthly type that the person can change on the next screen.
+   - The `start_route` usage event now takes `items` or `none`. The event version stays at 1, because no participant data had been collected yet.

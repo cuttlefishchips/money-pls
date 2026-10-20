@@ -1,6 +1,6 @@
 export const EVENT_VERSION = 1;
 
-export const ROUTES = ['areas', 'one', 'none'] as const;
+export const ROUTES = ['items', 'none'] as const;
 export const DECISIONS = ['accepted', 'adjusted', 'rejected'] as const;
 
 export type Route = (typeof ROUTES)[number];

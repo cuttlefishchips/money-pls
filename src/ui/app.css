@@ -138,3 +138,81 @@ h1 {
 h1:focus {
   outline: none;
 }
+
+.chip-group-label {
+  margin: 8px 0 8px;
+  color: var(--muted);
+  font-size: 0.94rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 16px;
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chip[aria-pressed='true'] {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.chip[aria-pressed='true'] .chip-name::before {
+  content: '✓ ';
+}
+
+.chip:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.chip-name {
+  font-weight: 500;
+}
+
+.chip-hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.25;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.field-label {
+  font-weight: 500;
+}
+
+.text-input {
+  min-height: 48px;
+  padding: 0 14px;
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  font: inherit;
+}
+
+.text-input:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}

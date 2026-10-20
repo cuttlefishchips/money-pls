@@ -1,17 +1,17 @@
 import type { Route } from '../../events';
 import { actions, button, h, screen } from '../dom';
-import { AREAS, canContinue, MAX_AREAS, type AreaId, type SetupState } from './state';
+import { canContinue, CUSTOM, CUSTOM_NAME_MAX, isPicked, ITEM_CHOICES, type ChoiceId, type SetupState } from './state';
 
 export interface SetupHandlers {
   chooseRoute(route: Route): void;
-  toggleArea(id: AreaId): void;
+  toggleItem(choice: ChoiceId): void;
+  setCustomName(name: string): void;
   next(): void;
   back(): void;
 }
 
 const ROUTE_OPTIONS: { route: Route; title: string; description: string }[] = [
-  { route: 'areas', title: 'A few things in my life', description: 'Pick up to three areas and put a rough cost on each.' },
-  { route: 'one', title: 'One specific thing', description: 'One thing with a cost and a date, like a course or a trip.' },
+  { route: 'items', title: "I've got things in mind", description: 'Pick what you want money for and put a rough price on each.' },
   { route: 'none', title: 'Not sure yet', description: 'Start with a safety floor and a simple split. You can set a target later.' },
 ];
 
@@ -23,42 +23,62 @@ export function routeScreen(state: SetupState, on: SetupHandlers): HTMLElement {
       'div',
       { class: 'choices', role: 'radiogroup', 'aria-labelledby': 'route-question' },
       ...ROUTE_OPTIONS.map((option) =>
-        choice({
-          type: 'radio',
-          name: 'route',
-          title: option.title,
-          description: option.description,
-          checked: state.route === option.route,
-          onChange: () => on.chooseRoute(option.route),
-        }),
+        h(
+          'label',
+          { class: 'choice' },
+          h('input', {
+            type: 'radio',
+            name: 'route',
+            checked: state.route === option.route,
+            onChange: () => on.chooseRoute(option.route),
+          }),
+          h('span', { class: 'choice-title' }, option.title),
+          h('span', { class: 'choice-description' }, option.description),
+        ),
       ),
     ),
     actions(button('Continue', on.next, 'primary', !canContinue(state))),
   );
 }
 
-export function areasScreen(state: SetupState, on: SetupHandlers): HTMLElement {
-  const full = state.areas.length >= MAX_AREAS;
-  return screen(
-    h('h1', { id: 'areas-question', tabindex: -1 }, 'Which areas matter most to you?'),
-    h('p', { class: 'lead' }, `Pick up to ${MAX_AREAS}. You'll put a rough cost on each next.`),
-    h('p', { class: 'note', 'aria-live': 'polite' }, `${state.areas.length} of ${MAX_AREAS} picked`),
+export function itemsScreen(state: SetupState, on: SetupHandlers): HTMLElement {
+  const oneOff = ITEM_CHOICES.filter((c) => c.kind === 'one-off');
+  const monthly = ITEM_CHOICES.filter((c) => c.kind === 'monthly');
+  const customPicked = isPicked(state, CUSTOM);
+  const customName = state.items.find((item) => item.choice === CUSTOM)?.name ?? '';
+
+  const chipGroup = (label: string, choices: readonly (typeof ITEM_CHOICES)[number][]) =>
     h(
       'div',
-      { class: 'choices', role: 'group', 'aria-labelledby': 'areas-question' },
-      ...AREAS.map((area) => {
-        const checked = state.areas.includes(area.id);
-        return choice({
-          type: 'checkbox',
-          name: 'areas',
-          title: area.name,
-          description: area.description,
-          checked,
-          disabled: full && !checked,
-          onChange: () => on.toggleArea(area.id),
-        });
-      }),
-    ),
+      { class: 'chip-group', role: 'group', 'aria-label': label },
+      h('p', { class: 'chip-group-label' }, label),
+      h(
+        'div',
+        { class: 'chips' },
+        ...choices.map((c) => chip(c.name, 'hint' in c ? c.hint : undefined, isPicked(state, c.id), () => on.toggleItem(c.id))),
+      ),
+    );
+
+  return screen(
+    h('h1', { tabindex: -1 }, 'What do you want money for in the next few years?'),
+    h('p', { class: 'lead' }, "Pick all that apply. You'll put a rough price on each next."),
+    chipGroup('One-off', oneOff),
+    chipGroup('Monthly', monthly),
+    h('div', { class: 'chips' }, chip('Something else', undefined, customPicked, () => on.toggleItem(CUSTOM))),
+    customPicked &&
+      h(
+        'label',
+        { class: 'field' },
+        h('span', { class: 'field-label' }, 'What is it?'),
+        h('input', {
+          type: 'text',
+          class: 'text-input',
+          value: customName,
+          maxlength: CUSTOM_NAME_MAX,
+          autocomplete: 'off',
+          onInput: (e: Event) => on.setCustomName((e.target as HTMLInputElement).value),
+        }),
+      ),
     actions(button('Back', on.back), button('Continue', on.next, 'primary', !canContinue(state))),
   );
 }
@@ -71,22 +91,11 @@ export function comingSoonScreen(on: SetupHandlers): HTMLElement {
   );
 }
 
-interface ChoiceOptions {
-  type: 'radio' | 'checkbox';
-  name: string;
-  title: string;
-  description: string;
-  checked: boolean;
-  disabled?: boolean;
-  onChange: () => void;
-}
-
-function choice(o: ChoiceOptions): HTMLElement {
+function chip(name: string, hint: string | undefined, pressed: boolean, onClick: () => void): HTMLElement {
   return h(
-    'label',
-    { class: 'choice' },
-    h('input', { type: o.type, name: o.name, checked: o.checked, disabled: o.disabled, onChange: o.onChange }),
-    h('span', { class: 'choice-title' }, o.title),
-    h('span', { class: 'choice-description' }, o.description),
+    'button',
+    { type: 'button', class: 'chip', 'aria-pressed': String(pressed), onClick },
+    h('span', { class: 'chip-name' }, name),
+    hint && h('span', { class: 'chip-hint' }, hint),
   );
 }

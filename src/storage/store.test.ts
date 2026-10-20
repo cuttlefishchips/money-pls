@@ -25,8 +25,8 @@ describe.each(implementations)('%s store', (_name, open) => {
 
   it('saves and replaces values by key', async () => {
     const store = await open();
-    await store.setValue('setup', { step: 2, route: 'areas' });
-    expect(await store.getValue('setup')).toEqual({ step: 2, route: 'areas' });
+    await store.setValue('setup', { step: 2, route: 'items' });
+    expect(await store.getValue('setup')).toEqual({ step: 2, route: 'items' });
     await store.setValue('setup', { step: 3 });
     expect(await store.getValue('setup')).toEqual({ step: 3 });
   });
