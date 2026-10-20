@@ -36,8 +36,8 @@ Every change must respect all of these. A change that breaks one is a bug, whate
 - Screens use only the tokens in src/ui/tokens.css. No raw hex values and no new fonts.
 - At most one accent-filled action per screen. Other actions are outlined.
 - Caveat Brush is for the daily number and headings only. Everything else is Instrument Sans.
-- Accent red is never used for neutral or positive states, such as "Within this month's budget" or "free to enjoy".
-- The ahead tint means on or ahead of pace. The care tint means take care. Neither is ever used for alarm, and red is never used for a number or a warning.
+- Accent red is used only for the one main button on a screen and the app icon. It is never used as a status, including over-budget, "Within this month's budget" and "free to enjoy".
+- The ahead tint means on or ahead of pace. The care tint means take care, and is used for over-budget. Neither is ever used for alarm, and red is never used for a number or a warning.
 - Cards use the card radius, buttons are pills, and tap targets are at least 44px high.
 - Copy is plain, kind and non-judgemental, in sentence case. Every number is labelled as an estimate.
 - Dark mode must work on every screen.

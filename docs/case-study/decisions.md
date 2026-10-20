@@ -23,5 +23,5 @@
    - Participant codes are 1 to 12 letters or numbers, treated as upper case, so a code cannot carry free text or amounts into the usage file.
    - The organiser uses the code ORG1. Every usage event and the export file name carry the code, so the organiser's data can be left out of analysis by filtering on ORG1.
    - The browser theme colour uses the board colour, and the app icon is "MP" on the accent colour, so the installed app matches the design tokens.
-   - Accent red is never used for neutral or positive states, such as "Within this month's budget" or "free to enjoy".
+   - Accent red is used only for the one main button on a screen and the app icon, and never as a status. Over-budget uses the care tint. This keeps red from reading as alarm next to money, in line with kind, non-judgemental copy.
    - The eight area descriptions on set-up step 2 are drafts for review.

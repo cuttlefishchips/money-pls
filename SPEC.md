@@ -174,6 +174,11 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 - Rating form URL (story 16). A placeholder is used until confirmed.
 - Short description for the manifest. The app name is Money Pls. A placeholder is used until confirmed.
 
+### Before the first participant
+- [ ] Rating form link: a Google Form, with the participant code pre-filled through the form's pre-filled link. A placeholder is used until the link is sent.
+- [ ] Manifest description confirmed.
+- [ ] Area and route descriptions on set-up steps 1 and 2 reviewed (drafts for now).
+
 ## 10. Decisions confirmed while building
 
 - 2026-10-20: `n` counts the start month. The target date is picked as a month and year and means the end of that month.
@@ -190,3 +195,4 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 - 2026-10-20: The participant code is stored on the phone the first time a link is opened. The app refuses to start only if no code has ever been stored. A link with a different code asks before switching, and entries on the phone are kept.
 - 2026-10-20: Participant codes are 1 to 12 letters or numbers, treated as upper case.
 - 2026-10-20: The organiser's code is ORG1. Leave ORG1 out of analysis by filtering on the `code` field or the export file name.
+- 2026-10-20: Accent red is used only for the one main button on a screen and the app icon, and never as a status. Over-budget uses the care tint.
