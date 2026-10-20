@@ -29,3 +29,7 @@
    - The `start_route` usage event now takes `items` or `none`. The event version stays at 1, because no participant data had been collected yet.
    - Step 2 now asks "What are you saving up for?", and every item is one-off: Travel, First home, Emergency fund, Wedding, Further studies, Career break, Big purchase, Something else.
    - Monthly items are removed from set-up and the calculation. They double-counted: ongoing costs like supporting family are already in fixed costs, and ongoing spending like eating out is already what the daily number covers. Supporting family is now named in the fixed costs helper text instead.
+   - Every item needs a price above zero before continuing, so the target is never built on a missing number.
+   - The target month is picked with separate month and year lists, from this month up to 10 years ahead. Months already past are not offered, and changing the year clears a month that would fall in the past.
+   - Savings set aside are asked for only on "I've got things in mind", because the floor route's calculation does not use them. On that route, 0 is a valid answer.
+   - Amounts are typed as plain text with a decimal keypad and an S$ label. Commas and a leading $ are accepted, and anything unreadable counts as missing rather than being guessed.

@@ -195,3 +195,4 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 - 2026-10-20: Accent red is used only for the one main button on a screen and the app icon, and never as a status. Over-budget uses the care tint.
 - 2026-10-20: Set-up has two routes, "I've got things in mind" and "Not sure yet". The areas list and the one-item route are replaced by concrete item chips with a pre-set type. `start_route` takes `items` or `none`.
 - 2026-10-20: All items are one-off. Monthly items and `M` are removed, so `B = P − F − A`. Supporting family is counted in fixed costs at step 5.
+- 2026-10-20: Set-up step 3 needs a price above zero for every item. Step 4 offers this month up to 10 years ahead, and clears the month if a change of year would put it in the past. Step 5 asks for savings only on "I've got things in mind", because the floor route does not use them.
