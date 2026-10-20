@@ -184,3 +184,4 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 - 2026-10-20: The prorated first-month budget `B_first` is rounded down to the cent.
 - 2026-10-20: The monthly amount `A` is rounded up to the cent on both routes, so the target is always reached and spending is never overstated.
 - 2026-10-20: When `P − F − M ≤ 0`, the target route shows this message even if savings cover the target: "Your fixed costs and monthly upgrades are more than your take-home pay. If that's right, the tool can't set a spending amount yet. You can adjust your numbers or remove a monthly item." The copy must not assume a mistake, because students and NSFs can genuinely have costs above their allowance. The floor route uses the same message without the monthly upgrades.
+- 2026-10-20: Pace between "ahead" and "over" is shown as "Within this month's budget", never "behind" or "on track".
