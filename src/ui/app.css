@@ -210,3 +210,61 @@ h1:focus {
   outline: 3px solid var(--ink);
   outline-offset: 2px;
 }
+
+.cards {
+  display: grid;
+  gap: 12px;
+}
+
+.card {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+.field-help {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.94rem;
+}
+
+.money-input {
+  position: relative;
+}
+
+.money-prefix {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  color: var(--muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.money-input .text-input {
+  width: 100%;
+  padding-left: 42px;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 12px;
+}
+
+select.text-input {
+  width: 100%;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
