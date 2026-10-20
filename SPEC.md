@@ -154,6 +154,7 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 - Every entry has an `owner` field (default `"me"`), so households fit later.
 - Events carry a version number `v`.
 - Folders: `src/calc` (pure rules and tests), `src/storage`, `src/events` (allowed list and export), `src/ui`.
+- UI styling lives in src/ui/tokens.css (colours, fonts, radii, dark mode). Fonts are bundled from npm, never loaded from a CDN, so the app works offline. The UI rules are in CLAUDE.md.
 - Tests: Vitest for `src/calc`, covering every rule and edge case in section 5.
 - Deploy to GitHub Pages with GitHub Actions. The repository is `money-pls`. Read the base path from the build environment instead of hard-coding it, so a rename never breaks the build.
 - Set-up includes a step that guides adding the app to the home screen (story 13), because iPhones can clear site data otherwise.

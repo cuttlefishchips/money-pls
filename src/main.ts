@@ -1,3 +1,5 @@
+import './ui/fonts';
+import './ui/tokens.css';
 import { createUsageLogger, trackSessions } from './events';
 import { resolveParticipant, switchParticipant, type Participant } from './participant/code';
 import { openStore, requestPersistentStorage, type Store } from './storage';
