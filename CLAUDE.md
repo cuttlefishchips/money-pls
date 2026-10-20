@@ -30,3 +30,13 @@ Every change must respect all of these. A change that breaks one is a bug, whate
 
 - Build in small steps and run typecheck and tests before each commit.
 - Record product or technical decisions in `docs/case-study/decisions.md` (date, what was chosen, why).
+
+## UI rules
+
+- Screens use only the tokens in src/ui/tokens.css. No raw hex values and no new fonts.
+- At most one accent-filled action per screen. Other actions are outlined.
+- Caveat Brush is for the daily number and headings only. Everything else is Instrument Sans.
+- The ahead tint means on or ahead of pace. The care tint means take care. Neither is ever used for alarm, and red is never used for a number or a warning.
+- Cards use the card radius, buttons are pills, and tap targets are at least 44px high.
+- Copy is plain, kind and non-judgemental, in sentence case. Every number is labelled as an estimate.
+- Dark mode must work on every screen.

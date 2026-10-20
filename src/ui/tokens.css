@@ -1,0 +1,17 @@
+:root {
+  --board: #f6f7f4; --card: #ffffff; --ink: #1d2528; --muted: #5b676b; --line: #b9c3bf;
+  --accent: #cf3f37; --on-accent: #ffffff;
+  --ahead: #cde7ee; --ahead-ink: #0e3640;
+  --care: #fdf1d6; --care-ink: #452f06;
+  --radius-card: 12px; --radius-pill: 999px;
+  --font-body: "Instrument Sans", system-ui, sans-serif;
+  --font-display: "Caveat Brush", cursive;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --board: #13191b; --card: #1d2527; --ink: #e7eded; --muted: #9aa8ab; --line: #3a4747;
+    --accent: #ff7b70; --on-accent: #13191b;
+    --ahead: #1d4350; --ahead-ink: #d2edf4;
+    --care: #47391b; --care-ink: #fbeac0;
+  }
+}
