@@ -18,3 +18,7 @@
    - The monthly amount set aside is rounded up to the cent on both routes, so the target is always reached and spending is never overstated.
    - When fixed costs and monthly upgrades leave nothing to spend from take-home pay, the tool says so and asks the person to adjust their numbers or remove a monthly item, even if savings already cover the target. The floor route uses the same message without monthly items. One wording covers costs equal to pay and costs above it. The message does not assume a mistake, because students and NSFs can genuinely have costs above their allowance.
    - Spending above an even share but inside the month's budget is shown as "Within this month's budget", never "behind" or "on track".
+   - The participant code is stored on the phone the first time a link is opened, and the app refuses to start only if no code has ever been stored. This is because an app installed on Android opens without the code in its address. The code still never reaches the server.
+   - If a link with a different code is opened later, the app asks before switching. Entries on the phone stay as they are, and only new usage events carry the new code.
+   - Participant codes are 1 to 12 letters or numbers, treated as upper case, so a code cannot carry free text or amounts into the usage file.
+   - The organiser uses the code ORG1. Every usage event and the export file name carry the code, so the organiser's data can be left out of analysis by filtering on ORG1.
