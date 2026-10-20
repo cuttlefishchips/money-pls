@@ -1,56 +1,96 @@
-import type { Route } from '../../events';
+import { ROUTES, type Route } from '../../events';
+import type { Item } from '../../calc/target';
 
-export const MAX_AREAS = 3;
+export type ItemKind = Item['kind'];
 
-export const AREAS = [
-  { id: 'work', name: 'Work', description: 'Changing jobs, starting something, or time off between roles.' },
-  { id: 'home', name: 'Home', description: 'Moving, renovating, or setting up a place of your own.' },
-  { id: 'health', name: 'Health', description: 'Care, treatment, fitness, or peace of mind about your health.' },
-  { id: 'family-care', name: 'Family care', description: 'Supporting parents, children, or others who rely on you.' },
-  { id: 'education', name: 'Education', description: 'Courses, a qualification, or learning a new skill.' },
-  { id: 'experiences', name: 'Experiences', description: 'Travel, events, or things you want to do while you can.' },
-  { id: 'everyday-living', name: 'Everyday living', description: 'Making ordinary days a bit easier or nicer.' },
-  { id: 'giving', name: 'Giving and legacy', description: 'Giving to people or causes, or leaving something behind.' },
-] as const;
+export const ITEM_CHOICES = [
+  { id: 'travel', name: 'Travel', kind: 'one-off' },
+  { id: 'wedding', name: 'Wedding', kind: 'one-off' },
+  { id: 'home', name: 'Home', hint: 'BTO, renovation, moving out', kind: 'one-off' },
+  { id: 'studies', name: 'Further studies', kind: 'one-off' },
+  { id: 'career-break', name: 'Career break', kind: 'one-off' },
+  { id: 'big-purchase', name: 'Big purchase', hint: 'car, gadgets', kind: 'one-off' },
+  { id: 'emergency-fund', name: 'Emergency fund', kind: 'one-off' },
+  { id: 'family', name: 'Supporting family', kind: 'monthly' },
+  { id: 'everyday', name: 'A better everyday life', hint: 'eating out, hobbies', kind: 'monthly' },
+] as const satisfies readonly { id: string; name: string; hint?: string; kind: ItemKind }[];
 
-export type AreaId = (typeof AREAS)[number]['id'];
+export const CUSTOM = 'custom';
+export const CUSTOM_NAME_MAX = 40;
 
-export type SetupStep = 'route' | 'areas' | 'items' | 'date' | 'numbers' | 'result';
+export type ChoiceId = (typeof ITEM_CHOICES)[number]['id'] | typeof CUSTOM;
+
+export interface SetupItem {
+  choice: ChoiceId;
+  name: string;
+  kind: ItemKind;
+  costCents: number | null;
+}
+
+export type SetupStep = 'route' | 'items' | 'prices' | 'date' | 'numbers' | 'result';
+
+const STEPS: readonly SetupStep[] = ['route', 'items', 'prices', 'date', 'numbers', 'result'];
 
 export interface SetupState {
   step: SetupStep;
   route: Route | null;
-  areas: AreaId[];
+  items: SetupItem[];
 }
 
 export const SETUP_KEY = 'setup';
 
-export const initialSetup: SetupState = { step: 'route', route: null, areas: [] };
+export const initialSetup: SetupState = { step: 'route', route: null, items: [] };
+
+export function loadSetup(saved: unknown): SetupState {
+  if (typeof saved !== 'object' || saved === null) return initialSetup;
+  const s = saved as Partial<SetupState>;
+  const validRoute = s.route === null || ROUTES.includes(s.route as Route);
+  const validStep = STEPS.includes(s.step as SetupStep);
+  if (!validRoute || !validStep || !Array.isArray(s.items)) return initialSetup;
+  return s as SetupState;
+}
 
 export function chooseRoute(state: SetupState, route: Route): SetupState {
   return { ...state, route };
 }
 
 export function stepAfterRoute(route: Route): SetupStep {
-  return route === 'areas' ? 'areas' : route === 'one' ? 'items' : 'numbers';
+  return route === 'items' ? 'items' : 'numbers';
 }
 
-export function toggleArea(state: SetupState, id: AreaId): SetupState {
-  if (state.areas.includes(id)) return { ...state, areas: state.areas.filter((a) => a !== id) };
-  if (state.areas.length >= MAX_AREAS) return state;
-  return { ...state, areas: [...state.areas, id] };
+export function isPicked(state: SetupState, choice: ChoiceId): boolean {
+  return state.items.some((item) => item.choice === choice);
+}
+
+export function toggleItem(state: SetupState, choice: ChoiceId): SetupState {
+  if (isPicked(state, choice)) return { ...state, items: state.items.filter((item) => item.choice !== choice) };
+  const preset = ITEM_CHOICES.find((c) => c.id === choice);
+  const item: SetupItem = preset
+    ? { choice, name: preset.name, kind: preset.kind, costCents: null }
+    : { choice: CUSTOM, name: '', kind: 'one-off', costCents: null };
+  return { ...state, items: [...state.items, item] };
+}
+
+export function setCustomName(state: SetupState, name: string): SetupState {
+  const trimmed = name.slice(0, CUSTOM_NAME_MAX);
+  return { ...state, items: state.items.map((item) => (item.choice === CUSTOM ? { ...item, name: trimmed } : item)) };
+}
+
+export function hasOneOff(state: SetupState): boolean {
+  return state.items.some((item) => item.kind === 'one-off');
 }
 
 export function previousStep(state: SetupState): SetupStep {
   switch (state.step) {
-    case 'areas':
-      return 'route';
     case 'items':
-      return state.route === 'areas' ? 'areas' : 'route';
-    case 'date':
+      return 'route';
+    case 'prices':
       return 'items';
+    case 'date':
+      return 'prices';
     case 'numbers':
-      return state.route === 'none' ? 'route' : 'date';
+      if (state.route === 'none') return 'route';
+      return hasOneOff(state) ? 'date' : 'prices';
     case 'result':
       return 'numbers';
     case 'route':
@@ -60,6 +100,6 @@ export function previousStep(state: SetupState): SetupStep {
 
 export function canContinue(state: SetupState): boolean {
   if (state.step === 'route') return state.route !== null;
-  if (state.step === 'areas') return state.areas.length > 0;
+  if (state.step === 'items') return state.items.length > 0 && state.items.every((item) => item.name.trim() !== '');
   return true;
 }

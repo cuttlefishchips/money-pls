@@ -7,10 +7,10 @@ describe('createUsageLogger', () => {
     const store = createMemoryStore();
     const logger = createUsageLogger(store, 'P3', () => 1000);
     await logger.log('spend_logged');
-    await logger.log('start_route', { route: 'one' });
+    await logger.log('start_route', { route: 'items' });
     expect(await store.listUsage()).toEqual([
       { v: 1, code: 'P3', type: 'spend_logged', ts: 1000 },
-      { v: 1, code: 'P3', type: 'start_route', route: 'one', ts: 1000 },
+      { v: 1, code: 'P3', type: 'start_route', route: 'items', ts: 1000 },
     ]);
   });
 
@@ -39,9 +39,9 @@ describe('createUsageLogger', () => {
   it('logs a once-only event a single time', async () => {
     const store = createMemoryStore();
     const logger = createUsageLogger(store, 'P3');
-    await logger.logOnce('start_route', { route: 'areas' });
+    await logger.logOnce('start_route', { route: 'items' });
     await logger.logOnce('start_route', { route: 'none' });
-    expect((await store.listUsage()).map((e) => e.route)).toEqual(['areas']);
+    expect((await store.listUsage()).map((e) => e.route)).toEqual(['items']);
   });
 });
 

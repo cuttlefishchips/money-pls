@@ -31,8 +31,8 @@ Priority: Must = needed for the test to work. Should = add if time allows. Build
 | # | As a participant, I want to | Priority |
 |---|---|---|
 | 1 | Enter my take-home pay, fixed costs including everyday essentials, and savings set aside, so the tool knows my starting point. | Must |
-| 2 | Pick the areas of life that matter to me and enter a rough cost for each, so my target reflects the life I want. | Must |
-| 3 | Enter a single goal with an amount and a date instead, so I can start without planning my whole life. | Must |
+| 2 | Pick what I want money for in the next few years and enter a rough price for each, so my target reflects the life I want. | Must |
+| 3 | Merged into story 2 on 2026-10-20. Picking a single item covers starting with one goal. | n/a |
 | 4 | Skip the goal and get a safety floor and starting split, so I can start without deciding what I want yet. | Must |
 | 5 | See my target, monthly amount and target date, and adjust them, so the target feels like mine. | Must |
 
@@ -72,14 +72,17 @@ Accounts, logins, bank connections, account lists, categories, several goals, pr
 
 ## 4. Set-up flow (stories 1 to 5 and 16)
 
-1. **Choose a route.** "What would make the next few years feel good?" Options: a few things in my life, one specific thing, not sure yet.
-2. **Pick areas** (route 1 only). Pick up to three of: Work, Home, Health, Family care, Education, Experiences, Everyday living, Giving and legacy. Each has a one-line description.
-3. **Price each one.** Name in their own words, rough cost, one-off or monthly. Prompt: think of the last time you paid for something similar. No example price ranges. Route 2 enters one item here.
+1. **Choose a route.** "What would make the next few years feel good?" Options: "I've got things in mind" and "Not sure yet".
+2. **Pick items** ("I've got things in mind" only). Question: "What do you want money for in the next few years?" Hint: "Pick all that apply. You'll put a rough price on each next." Multi-select chips, each with a pre-set type:
+   - One-off: Travel, Wedding, Home (BTO, renovation, moving out), Further studies, Career break, Big purchase (car, gadgets), Emergency fund.
+   - Monthly: Supporting family, A better everyday life (eating out, hobbies).
+   - Something else, where the person types their own name. It starts as one-off.
+3. **Price each one.** Each picked item arrives with its name pre-filled and editable, and one-off or monthly pre-set and changeable. Enter a rough cost. Prompt: think of the last time you paid for something similar. No example price ranges.
 4. **Set a date.** One month and year for all one-off items, picked with a month and year picker. The target date `T` is the last day of that month.
 5. **Starting numbers.** Take-home pay per month, fixed costs per month including everyday essentials (show what counts: rent or mortgage, bills, insurance, groceries, transport, other essentials), and savings set aside for this. "Roughly is fine."
-6. **See the result.** Target, monthly amount, target date and daily number, or the floor and split for route 3. Every cost and the date can be edited. Then Accept, then a link to the rating form (URL configurable).
+6. **See the result.** Target, monthly amount, target date and daily number, or the floor and split for "Not sure yet". Every cost and the date can be edited. Then Accept, then a link to the rating form (URL configurable).
 
-Route 3 ("not sure yet") goes 1 → 5 → 6.
+"Not sure yet" goes 1 → 5 → 6. "I've got things in mind" goes 1 → 2 → 3 → 4 → 5 → 6, and skips step 4 when every item is monthly.
 
 Set-up progress is saved on the device, so leaving part-way resumes where the person stopped.
 
@@ -95,14 +98,14 @@ Put all of this in a pure module (`src/calc/`) with unit tests. Screens call it 
 - Target date `T` (last day of the chosen month), today `t`
 - `spent` = sum of optional spends logged in the current calendar month
 
-### Target route (routes 1 and 2)
+### Target route ("I've got things in mind")
 - `target = Σ O_i`
 - `n` = whole months from the start month to `T`, counting the start month and the month of `T`, minimum 1. Example: start in October, `T` in December, `n = 3`.
 - `A` (monthly amount) = `max(0, target − S) / n`
 - `M` = `Σ M_j` (monthly upgrades, which come off spending from now on)
 - `B` (monthly safe-to-spend) = `P − F − A − M`
 
-### Floor route (route 3)
+### Floor route ("Not sure yet")
 - `floor = 3 × F` (adjustable)
 - `A = min(0.2 × P, P − F)`, which is saved towards the floor
 - If `P < F`, `A = 0` and the person is asked to check their numbers, as on the target route.
@@ -140,7 +143,7 @@ Store in a separate usage log. Every event has `{ v: 1, code, type, ts }` plus o
 | `session` | `duration_s` | when a session ends (page hidden or closed) |
 | `spend_logged` | none | each optional spend saved |
 | `budget_viewed` | none | once per screen visit that shows the daily number or target date, and again when the app returns to the foreground on that screen |
-| `start_route` | `route`: `areas`, `one`, `none` | once, at set-up step 1 |
+| `start_route` | `route`: `items`, `none` | once, at set-up step 1 |
 | `target_decision` | `decision`: `accepted`, `adjusted`, `rejected` | at set-up step 6, and when a target is later changed |
 | `target_set_later` | none | a floor-route person later sets a target |
 
@@ -177,7 +180,7 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 ### Before the first participant
 - [ ] Rating form link: a Google Form, with the participant code pre-filled through the form's pre-filled link. A placeholder is used until the link is sent.
 - [ ] Manifest description confirmed.
-- [ ] Area and route descriptions on set-up steps 1 and 2 reviewed (drafts for now).
+- [ ] Route descriptions on set-up step 1 reviewed (drafts for now).
 
 ## 10. Decisions confirmed while building
 
@@ -196,3 +199,4 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 - 2026-10-20: Participant codes are 1 to 12 letters or numbers, treated as upper case.
 - 2026-10-20: The organiser's code is ORG1. Leave ORG1 out of analysis by filtering on the `code` field or the export file name.
 - 2026-10-20: Accent red is used only for the one main button on a screen and the app icon, and never as a status. Over-budget uses the care tint.
+- 2026-10-20: Set-up has two routes, "I've got things in mind" and "Not sure yet". The areas list and the one-item route are replaced by concrete item chips with a pre-set type. `start_route` takes `items` or `none`.
