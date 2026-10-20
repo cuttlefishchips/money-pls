@@ -182,3 +182,6 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 - 2026-10-20: `budget_viewed` fires once per screen visit, and again when the app returns to the foreground on that screen.
 - 2026-10-20: Amounts are in cents. The daily number and "free to enjoy" round down, and the target date delay rounds up.
 - 2026-10-20: The prorated first-month budget `B_first` is rounded down to the cent.
+- 2026-10-20: The monthly amount `A` is rounded up to the cent on both routes, so the target is always reached and spending is never overstated.
+- 2026-10-20: When `P − F − M ≤ 0`, the target route shows this message even if savings cover the target: "Your fixed costs and monthly upgrades leave nothing to spend from your take-home pay. If that's right, the tool can't set a spending amount yet. You can adjust your numbers or remove a monthly item." The same wording covers costs equal to pay and costs above it. The copy must not assume a mistake, because students and NSFs can genuinely have costs above their allowance.
+- 2026-10-20: When `P < F` on the floor route, it shows: "Your fixed costs leave nothing to spend from your take-home pay. If that's right, the tool can't set a spending amount yet. You can adjust your numbers."
