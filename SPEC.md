@@ -186,3 +186,6 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 - 2026-10-20: When `P − F − M ≤ 0`, the target route shows this message even if savings cover the target: "Your fixed costs and monthly upgrades leave nothing to spend from your take-home pay. If that's right, the tool can't set a spending amount yet. You can adjust your numbers or remove a monthly item." The same wording covers costs equal to pay and costs above it. The copy must not assume a mistake, because students and NSFs can genuinely have costs above their allowance.
 - 2026-10-20: When `P < F` on the floor route, it shows: "Your fixed costs leave nothing to spend from your take-home pay. If that's right, the tool can't set a spending amount yet. You can adjust your numbers."
 - 2026-10-20: Pace between "ahead" and "over" is shown as "Within this month's budget", never "behind" or "on track".
+- 2026-10-20: The participant code is stored on the phone the first time a link is opened. The app refuses to start only if no code has ever been stored. A link with a different code asks before switching, and entries on the phone are kept.
+- 2026-10-20: Participant codes are 1 to 12 letters or numbers, treated as upper case.
+- 2026-10-20: The organiser's code is ORG1. Leave ORG1 out of analysis by filtering on the `code` field or the export file name.
