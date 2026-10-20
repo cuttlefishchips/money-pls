@@ -15,3 +15,5 @@
    - The rating form link and the app description use placeholders until confirmed.
    - Each build step ships as its own pull request.
    - The prorated first-month budget is rounded down to the cent, in line with never overstating what is available.
+   - The monthly amount set aside is rounded up to the cent on both routes, so the target is always reached and spending is never overstated.
+   - When fixed costs and monthly upgrades are more than take-home pay, the tool asks the person to adjust their numbers or remove a monthly item, even if savings already cover the target. The message does not assume a mistake, because students and NSFs can genuinely have costs above their allowance.
