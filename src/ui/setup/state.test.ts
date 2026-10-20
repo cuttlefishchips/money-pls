@@ -17,17 +17,15 @@ import {
 const onItems: SetupState = { ...initialSetup, step: 'items', route: 'items' };
 
 describe('item choices', () => {
-  it('lists the items in SPEC.md section 4 with their pre-set type', () => {
-    expect(ITEM_CHOICES.map((c) => [c.name, c.kind])).toEqual([
-      ['Travel', 'one-off'],
-      ['Wedding', 'one-off'],
-      ['Home', 'one-off'],
-      ['Further studies', 'one-off'],
-      ['Career break', 'one-off'],
-      ['Big purchase', 'one-off'],
-      ['Emergency fund', 'one-off'],
-      ['Supporting family', 'monthly'],
-      ['A better everyday life', 'monthly'],
+  it('lists the items in SPEC.md section 4, in order', () => {
+    expect(ITEM_CHOICES.map((c) => c.name)).toEqual([
+      'Travel',
+      'First home',
+      'Emergency fund',
+      'Wedding',
+      'Further studies',
+      'Career break',
+      'Big purchase',
     ]);
   });
 });
@@ -44,15 +42,13 @@ describe('set-up routes', () => {
   });
 
   it('goes back along the route the person took', () => {
-    const withOneOff = toggleItem(onItems, 'travel');
-    const monthlyOnly = toggleItem(onItems, 'family');
+    const picked = toggleItem(onItems, 'travel');
     expect(previousStep(onItems)).toBe('route');
-    expect(previousStep({ ...withOneOff, step: 'prices' })).toBe('items');
-    expect(previousStep({ ...withOneOff, step: 'date' })).toBe('prices');
-    expect(previousStep({ ...withOneOff, step: 'numbers' })).toBe('date');
-    expect(previousStep({ ...monthlyOnly, step: 'numbers' })).toBe('prices');
+    expect(previousStep({ ...picked, step: 'prices' })).toBe('items');
+    expect(previousStep({ ...picked, step: 'date' })).toBe('prices');
+    expect(previousStep({ ...picked, step: 'numbers' })).toBe('date');
     expect(previousStep({ ...initialSetup, route: 'none', step: 'numbers' })).toBe('route');
-    expect(previousStep({ ...withOneOff, step: 'result' })).toBe('numbers');
+    expect(previousStep({ ...picked, step: 'result' })).toBe('numbers');
   });
 });
 
@@ -62,11 +58,11 @@ describe('picking items', () => {
     expect(canContinue(toggleItem(onItems, 'travel'))).toBe(true);
   });
 
-  it('pre-fills the name and type of a picked item, with no price yet', () => {
-    const state = toggleItem(toggleItem(onItems, 'home'), 'everyday');
+  it('pre-fills the name of a picked item, with no price yet', () => {
+    const state = toggleItem(toggleItem(onItems, 'first-home'), 'wedding');
     expect(state.items).toEqual([
-      { choice: 'home', name: 'Home', kind: 'one-off', costCents: null },
-      { choice: 'everyday', name: 'A better everyday life', kind: 'monthly', costCents: null },
+      { choice: 'first-home', name: 'First home', costCents: null },
+      { choice: 'wedding', name: 'Wedding', costCents: null },
     ]);
   });
 
@@ -80,9 +76,9 @@ describe('picking items', () => {
     expect(toggleItem(toggleItem(onItems, 'travel'), 'travel').items).toEqual([]);
   });
 
-  it('starts something else as an unnamed one-off that needs a name before continuing', () => {
+  it('starts something else unnamed, and needs a name before continuing', () => {
     const state = toggleItem(onItems, CUSTOM);
-    expect(state.items).toEqual([{ choice: CUSTOM, name: '', kind: 'one-off', costCents: null }]);
+    expect(state.items).toEqual([{ choice: CUSTOM, name: '', costCents: null }]);
     expect(canContinue(state)).toBe(false);
     expect(canContinue(setCustomName(state, '   '))).toBe(false);
     expect(canContinue(setCustomName(state, 'Pottery kiln'))).toBe(true);
@@ -107,5 +103,26 @@ describe('loadSetup', () => {
   it('starts fresh when saved progress is from the retired three-route set-up', () => {
     expect(loadSetup({ step: 'areas', route: 'areas', areas: ['home'] })).toEqual(initialSetup);
     expect(loadSetup({ step: 'items', route: 'one', items: [] })).toEqual(initialSetup);
+  });
+
+  it('drops retired monthly items and their type from saved progress', () => {
+    const saved = {
+      step: 'items',
+      route: 'items',
+      items: [
+        { choice: 'travel', name: 'Travel', kind: 'one-off', costCents: null },
+        { choice: 'family', name: 'Supporting family', kind: 'monthly', costCents: null },
+      ],
+    };
+    expect(loadSetup(saved).items).toEqual([{ choice: 'travel', name: 'Travel', costCents: null }]);
+  });
+
+  it('sends the person back to pick items when saved items were dropped after that step', () => {
+    const saved = {
+      step: 'prices',
+      route: 'items',
+      items: [{ choice: 'everyday', name: 'A better everyday life', kind: 'monthly', costCents: null }],
+    };
+    expect(loadSetup(saved)).toEqual({ step: 'items', route: 'items', items: [] });
   });
 });

@@ -11,7 +11,7 @@ export interface SetupHandlers {
 }
 
 const ROUTE_OPTIONS: { route: Route; title: string; description: string }[] = [
-  { route: 'items', title: "I've got things in mind", description: 'Pick what you want money for and put a rough price on each.' },
+  { route: 'items', title: "I've got things in mind", description: "Pick what you're saving up for and put a rough price on each." },
   { route: 'none', title: 'Not sure yet', description: 'Start with a safety floor and a simple split. You can set a target later.' },
 ];
 
@@ -42,29 +42,18 @@ export function routeScreen(state: SetupState, on: SetupHandlers): HTMLElement {
 }
 
 export function itemsScreen(state: SetupState, on: SetupHandlers): HTMLElement {
-  const oneOff = ITEM_CHOICES.filter((c) => c.kind === 'one-off');
-  const monthly = ITEM_CHOICES.filter((c) => c.kind === 'monthly');
   const customPicked = isPicked(state, CUSTOM);
   const customName = state.items.find((item) => item.choice === CUSTOM)?.name ?? '';
 
-  const chipGroup = (label: string, choices: readonly (typeof ITEM_CHOICES)[number][]) =>
+  return screen(
+    h('h1', { id: 'items-question', tabindex: -1 }, 'What are you saving up for?'),
+    h('p', { class: 'lead' }, "Pick all that apply. You'll put a rough price on each next."),
     h(
       'div',
-      { class: 'chip-group', role: 'group', 'aria-label': label },
-      h('p', { class: 'chip-group-label' }, label),
-      h(
-        'div',
-        { class: 'chips' },
-        ...choices.map((c) => chip(c.name, 'hint' in c ? c.hint : undefined, isPicked(state, c.id), () => on.toggleItem(c.id))),
-      ),
-    );
-
-  return screen(
-    h('h1', { tabindex: -1 }, 'What do you want money for in the next few years?'),
-    h('p', { class: 'lead' }, "Pick all that apply. You'll put a rough price on each next."),
-    chipGroup('One-off', oneOff),
-    chipGroup('Monthly', monthly),
-    h('div', { class: 'chips' }, chip('Something else', undefined, customPicked, () => on.toggleItem(CUSTOM))),
+      { class: 'chips', role: 'group', 'aria-labelledby': 'items-question' },
+      ...ITEM_CHOICES.map((c) => chip(c.name, 'hint' in c ? c.hint : undefined, isPicked(state, c.id), () => on.toggleItem(c.id))),
+      chip('Something else', undefined, customPicked, () => on.toggleItem(CUSTOM)),
+    ),
     customPicked &&
       h(
         'label',

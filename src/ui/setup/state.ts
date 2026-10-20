@@ -1,29 +1,25 @@
 import { ROUTES, type Route } from '../../events';
-import type { Item } from '../../calc/target';
-
-export type ItemKind = Item['kind'];
 
 export const ITEM_CHOICES = [
-  { id: 'travel', name: 'Travel', kind: 'one-off' },
-  { id: 'wedding', name: 'Wedding', kind: 'one-off' },
-  { id: 'home', name: 'Home', hint: 'BTO, renovation, moving out', kind: 'one-off' },
-  { id: 'studies', name: 'Further studies', kind: 'one-off' },
-  { id: 'career-break', name: 'Career break', kind: 'one-off' },
-  { id: 'big-purchase', name: 'Big purchase', hint: 'car, gadgets', kind: 'one-off' },
-  { id: 'emergency-fund', name: 'Emergency fund', kind: 'one-off' },
-  { id: 'family', name: 'Supporting family', kind: 'monthly' },
-  { id: 'everyday', name: 'A better everyday life', hint: 'eating out, hobbies', kind: 'monthly' },
-] as const satisfies readonly { id: string; name: string; hint?: string; kind: ItemKind }[];
+  { id: 'travel', name: 'Travel' },
+  { id: 'first-home', name: 'First home', hint: 'BTO, renovation, moving out' },
+  { id: 'emergency-fund', name: 'Emergency fund' },
+  { id: 'wedding', name: 'Wedding' },
+  { id: 'studies', name: 'Further studies' },
+  { id: 'career-break', name: 'Career break' },
+  { id: 'big-purchase', name: 'Big purchase', hint: 'car, gadgets' },
+] as const satisfies readonly { id: string; name: string; hint?: string }[];
 
 export const CUSTOM = 'custom';
 export const CUSTOM_NAME_MAX = 40;
 
 export type ChoiceId = (typeof ITEM_CHOICES)[number]['id'] | typeof CUSTOM;
 
+const CHOICE_IDS: readonly string[] = [...ITEM_CHOICES.map((c) => c.id), CUSTOM];
+
 export interface SetupItem {
   choice: ChoiceId;
   name: string;
-  kind: ItemKind;
   costCents: number | null;
 }
 
@@ -47,7 +43,13 @@ export function loadSetup(saved: unknown): SetupState {
   const validRoute = s.route === null || ROUTES.includes(s.route as Route);
   const validStep = STEPS.includes(s.step as SetupStep);
   if (!validRoute || !validStep || !Array.isArray(s.items)) return initialSetup;
-  return s as SetupState;
+  const items = s.items
+    .filter((item) => CHOICE_IDS.includes(item.choice))
+    .map(({ choice, name, costCents }) => ({ choice, name, costCents }));
+  if (items.length !== s.items.length && s.step !== 'route' && s.step !== 'items') {
+    return { ...(s as SetupState), step: 'items', items };
+  }
+  return { ...(s as SetupState), items };
 }
 
 export function chooseRoute(state: SetupState, route: Route): SetupState {
@@ -65,19 +67,13 @@ export function isPicked(state: SetupState, choice: ChoiceId): boolean {
 export function toggleItem(state: SetupState, choice: ChoiceId): SetupState {
   if (isPicked(state, choice)) return { ...state, items: state.items.filter((item) => item.choice !== choice) };
   const preset = ITEM_CHOICES.find((c) => c.id === choice);
-  const item: SetupItem = preset
-    ? { choice, name: preset.name, kind: preset.kind, costCents: null }
-    : { choice: CUSTOM, name: '', kind: 'one-off', costCents: null };
+  const item: SetupItem = { choice, name: preset?.name ?? '', costCents: null };
   return { ...state, items: [...state.items, item] };
 }
 
 export function setCustomName(state: SetupState, name: string): SetupState {
   const trimmed = name.slice(0, CUSTOM_NAME_MAX);
   return { ...state, items: state.items.map((item) => (item.choice === CUSTOM ? { ...item, name: trimmed } : item)) };
-}
-
-export function hasOneOff(state: SetupState): boolean {
-  return state.items.some((item) => item.kind === 'one-off');
 }
 
 export function previousStep(state: SetupState): SetupStep {
@@ -89,8 +85,7 @@ export function previousStep(state: SetupState): SetupStep {
     case 'date':
       return 'prices';
     case 'numbers':
-      if (state.route === 'none') return 'route';
-      return hasOneOff(state) ? 'date' : 'prices';
+      return state.route === 'none' ? 'route' : 'date';
     case 'result':
       return 'numbers';
     case 'route':
