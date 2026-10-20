@@ -14,3 +14,4 @@
    - All maths is in cents. The daily number and "free to enjoy" round down so they never overstate, and the target date delay rounds up so it never understates.
    - The rating form link and the app description use placeholders until confirmed.
    - Each build step ships as its own pull request.
+   - The prorated first-month budget is rounded down to the cent, in line with never overstating what is available.

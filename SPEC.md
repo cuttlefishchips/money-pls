@@ -181,3 +181,4 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 - 2026-10-20: Transfers and card bill payments are excluded by one line of copy on the logging screen, with no toggle or category.
 - 2026-10-20: `budget_viewed` fires once per screen visit, and again when the app returns to the foreground on that screen.
 - 2026-10-20: Amounts are in cents. The daily number and "free to enjoy" round down, and the target date delay rounds up.
+- 2026-10-20: The prorated first-month budget `B_first` is rounded down to the cent.
