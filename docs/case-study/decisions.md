@@ -42,3 +42,9 @@
 - The emergency fund can be priced at 3 months of fixed costs for people who are not sure what to aim for, matching the safety floor on the "Not sure yet" route.
 - The result screen offers "Try a safety floor instead", which counts as rejecting the target, so the usage data can show how often people turn a target down.
 - Amounts on the result screen are whole dollars, rounding up what to set aside and down what to spend, so the plan never overstates what is free to spend.
+- Onboarding is progressive: two set-up screens, then Today, where each goal is priced from its card when the person is ready. The gated survey delayed all value: nobody saw a daily number until every goal had a price, a date and savings filled in.
+- Today uses the safety-floor split until at least one goal is priced, then the target over priced goals only, so there is always a daily number from the first visit.
+- Pricing a goal shows how the daily number moves ("Adding Travel by June 2027: S$82 a day, up from S$60"), so each price has a visible effect. The first goal can raise the number, because the floor's 20% saving is replaced by that goal's monthly amount.
+- `target_decision` now records goal-level choices: accepted when a goal is first priced, adjusted when a priced goal is edited, and rejected when a goal is removed. "Try a safety floor instead" is dropped, because removing every priced goal already returns to the floor.
+- The first evaluation question becomes "Does a person price at least one item in the first session?", since set-up no longer forces a target.
+- The home-screen guide and rating link move to a one-time card on the first visit to Today.
