@@ -4,9 +4,8 @@ import { assertCents, ceilDiv, floorDiv } from './money';
 const WEEKS_PER_MONTH_X100 = 435;
 
 export interface DailyInputs {
-  route: 'target' | 'floor';
   safeToSpendCents: number;
-  monthlyAmountCents: number;
+  delayItemMonthlyCents: number | null;
   spentCents: number;
   setupDate: CalDate;
   today: CalDate;
@@ -23,9 +22,9 @@ export interface DailyStatus {
 }
 
 export function dailyStatus(inputs: DailyInputs): DailyStatus {
-  const { safeToSpendCents, monthlyAmountCents: A, spentCents: spent } = inputs;
+  const { safeToSpendCents, delayItemMonthlyCents: A, spentCents: spent } = inputs;
   assertCents('safeToSpendCents', safeToSpendCents);
-  assertCents('monthlyAmountCents', A);
+  if (A !== null) assertCents('delayItemMonthlyCents', A);
   assertCents('spentCents', spent);
 
   const period = budgetPeriod(inputs.today, inputs.setupDate);
@@ -40,7 +39,6 @@ export function dailyStatus(inputs: DailyInputs): DailyStatus {
   const ahead = spentX < evenShareX - B;
   const over = spent > B;
 
-  const showDelay = over && inputs.route === 'target' && A > 0;
 
   return {
     budgetCents: B,
@@ -48,7 +46,7 @@ export function dailyStatus(inputs: DailyInputs): DailyStatus {
     usedUp,
     pace: over ? 'over' : ahead ? 'ahead' : 'within',
     freeToEnjoyCents: ahead ? floorDiv(evenShareX - spentX, period.periodDays) : null,
-    delayWeeks: showDelay ? ceilDiv((spent - B) * WEEKS_PER_MONTH_X100, A * 100) : null,
+    delayWeeks: over && A !== null && A > 0 ? ceilDiv((spent - B) * WEEKS_PER_MONTH_X100, A * 100) : null,
     daysLeft: period.daysLeft,
   };
 }

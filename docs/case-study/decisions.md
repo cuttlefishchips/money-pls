@@ -33,3 +33,12 @@
    - The target month is picked with separate month and year lists, from this month up to 10 years ahead. Months already past are not offered, and changing the year clears a month that would fall in the past.
    - Savings set aside are asked for only on "I've got things in mind", because the floor route's calculation does not use them. On that route, 0 is a valid answer.
    - Amounts are typed as plain text with a decimal keypad and an S$ label. Commas and a leading $ are accepted, and anything unreadable counts as missing rather than being guessed.
+
+## 2026-10-21
+- Each goal has its own price, date and saved so far, in place of one shared date and one savings figure. One shared date was unrealistic once goals became concrete items, such as a trip next June and a home in three years.
+- The monthly amount is worked out per goal and added up. An overspend moves the soonest unfinished goal's date, using that goal's monthly amount, because that is the goal the person would feel first.
+- When the goals need more than is left after fixed costs, the result says how much they need against how much is available, and the person moves dates or removes goals. The automatic earliest-date calculation is dropped, because with several dates there is no single date to suggest.
+- A goal whose savings already cover its price shows as already covered and adds nothing to the monthly amount.
+- The emergency fund can be priced at 3 months of fixed costs for people who are not sure what to aim for, matching the safety floor on the "Not sure yet" route.
+- The result screen offers "Try a safety floor instead", which counts as rejecting the target, so the usage data can show how often people turn a target down.
+- Amounts on the result screen are whole dollars, rounding up what to set aside and down what to spend, so the plan never overstates what is free to spend.

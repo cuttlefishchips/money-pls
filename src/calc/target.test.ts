@@ -1,126 +1,113 @@
 import { describe, expect, it } from 'vitest';
-import { addMonths, planTarget, type TargetInputs } from './target';
+import { planItem, planTarget, soonestUnfinished, type Item, type TargetInputs } from './target';
 
-const base: TargetInputs = {
-  payCents: 500_000,
-  fixedCents: 300_000,
-  savingsCents: 0,
-  items: [],
-  startMonth: { year: 2026, month: 10 },
-  targetMonth: { year: 2026, month: 12 },
-};
+const start = { year: 2026, month: 10 };
+const item = (costCents: number | null, month: number, year = 2026, savedCents = 0, useFixedCostMonths = false): Item => ({
+  costCents,
+  savedCents,
+  useFixedCostMonths,
+  targetMonth: { year, month },
+});
 
-describe('planTarget', () => {
-  it('sums the items into the target and spreads what is still needed over n months', () => {
-    const result = planTarget({
-      ...base,
-      savingsCents: 30_000,
-      items: [{ costCents: 200_000 }, { costCents: 100_000 }],
-    });
-    expect(result).toEqual({
-      kind: 'ok',
-      targetCents: 300_000,
+const base: TargetInputs = { payCents: 500_000, fixedCents: 300_000, items: [], startMonth: start };
+
+describe('planItem', () => {
+  it('spreads what is still needed over the months to its own date, counting the start month', () => {
+    expect(planItem(item(300_000, 12, 2026, 30_000), 300_000, start)).toEqual({
+      priceCents: 300_000,
+      savedCents: 30_000,
       months: 3,
+      targetMonth: { year: 2026, month: 12 },
       targetDate: { year: 2026, month: 12, day: 31 },
       monthlyAmountCents: 90_000,
-      safeToSpendCents: 110_000,
+      covered: false,
     });
   });
 
-  it('works out safe-to-spend as pay less fixed costs less the monthly amount', () => {
-    const result = planTarget({ ...base, items: [{ costCents: 120_000 }] });
-    expect(result).toMatchObject({ kind: 'ok', monthlyAmountCents: 40_000, safeToSpendCents: 160_000 });
+  it('rounds the monthly amount up to the cent', () => {
+    expect(planItem(item(100_000, 12), 0, start).monthlyAmountCents).toBe(33_334);
   });
 
-  it('uses n = 1 when the target month is the start month or earlier', () => {
-    const items = [{ costCents: 50_000 }];
-    expect(planTarget({ ...base, items, targetMonth: { year: 2026, month: 10 } })).toMatchObject({
-      months: 1,
-      monthlyAmountCents: 50_000,
+  it('uses one month when the date is the start month or earlier', () => {
+    expect(planItem(item(50_000, 10), 0, start)).toMatchObject({ months: 1, monthlyAmountCents: 50_000 });
+    expect(planItem(item(50_000, 9), 0, start)).toMatchObject({ months: 1 });
+  });
+
+  it('shows an item as already covered when saved is at least the price, adding nothing', () => {
+    expect(planItem(item(150_000, 12, 2026, 150_000), 0, start)).toMatchObject({ covered: true, monthlyAmountCents: 0 });
+    expect(planItem(item(150_000, 12, 2026, 200_000), 0, start)).toMatchObject({ covered: true, monthlyAmountCents: 0 });
+  });
+
+  it('prices an emergency fund at three months of fixed costs when asked', () => {
+    expect(planItem(item(null, 3, 2027, 0, true), 300_000, start)).toMatchObject({
+      priceCents: 900_000,
+      months: 6,
+      monthlyAmountCents: 150_000,
     });
-    expect(planTarget({ ...base, items, targetMonth: { year: 2026, month: 9 } })).toMatchObject({ months: 1 });
   });
 
-  it('rounds the monthly amount up to the cent so the target is reached', () => {
-    const result = planTarget({ ...base, items: [{ costCents: 100_000 }] });
-    expect(result).toMatchObject({ monthlyAmountCents: 33_334, safeToSpendCents: 166_666 });
+  it('needs a price unless months of fixed costs are used', () => {
+    expect(() => planItem(item(null, 12), 0, start)).toThrow();
   });
+});
 
-  it('allows safe-to-spend of exactly zero', () => {
-    const result = planTarget({ ...base, items: [{ costCents: 600_000 }] });
+describe('planTarget', () => {
+  it('adds up each item to A and works out B = P − F − A', () => {
+    const result = planTarget({
+      ...base,
+      items: [item(300_000, 12), item(1_200_000, 9, 2027, 0)],
+    });
     expect(result).toMatchObject({ kind: 'ok', monthlyAmountCents: 200_000, safeToSpendCents: 0 });
+    if (result.kind === 'ok') expect(result.items.map((i) => i.monthlyAmountCents)).toEqual([100_000, 100_000]);
   });
 
-  describe('when savings already cover the target', () => {
-    it('says so, with nothing more to set aside', () => {
-      const result = planTarget({ ...base, savingsCents: 200_000, items: [{ costCents: 150_000 }] });
-      expect(result).toEqual({
-        kind: 'covered-by-savings',
-        targetCents: 150_000,
-        months: 3,
-        targetDate: { year: 2026, month: 12, day: 31 },
-        monthlyAmountCents: 0,
-        safeToSpendCents: 200_000,
-      });
-    });
+  it('adds nothing for covered items', () => {
+    const result = planTarget({ ...base, items: [item(100_000, 12, 2026, 100_000), item(60_000, 12)] });
+    expect(result).toMatchObject({ kind: 'ok', monthlyAmountCents: 20_000, safeToSpendCents: 180_000 });
+  });
 
-    it('treats savings exactly equal to the target as covered', () => {
-      const result = planTarget({ ...base, savingsCents: 150_000, items: [{ costCents: 150_000 }] });
-      expect(result.kind).toBe('covered-by-savings');
-    });
+  it('says how much the goals need against what is left when B would be negative', () => {
+    const result = planTarget({ ...base, items: [item(900_000, 12), item(300_000, 10)] });
+    expect(result).toMatchObject({ kind: 'needs-more', monthlyAmountCents: 600_000, availableCents: 200_000 });
+  });
 
-    it('treats a target of zero as covered', () => {
-      expect(planTarget({ ...base, items: [{ costCents: 0 }] }).kind).toBe('covered-by-savings');
+  it('asks to check the numbers when fixed costs use all of take-home pay', () => {
+    expect(planTarget({ ...base, fixedCents: 500_000, items: [item(100_000, 12)] })).toEqual({ kind: 'check-numbers' });
+    expect(planTarget({ ...base, fixedCents: 600_000, items: [item(100_000, 12, 2026, 100_000)] })).toEqual({
+      kind: 'check-numbers',
     });
   });
 
-  describe('when safe-to-spend would be negative', () => {
-    it('offers the earliest workable month when there is money left after fixed costs', () => {
-      const result = planTarget({ ...base, savingsCents: 50_000, items: [{ costCents: 1_050_000 }] });
-      expect(result).toEqual({
-        kind: 'too-soon',
-        earliestMonths: 5,
-        earliestTargetMonth: { year: 2027, month: 2 },
-      });
-    });
-
-    it('gives an earliest month whose plan is workable', () => {
-      const inputs = { ...base, items: [{ costCents: 1_000_001 }] };
-      const tooSoon = planTarget(inputs);
-      expect(tooSoon).toMatchObject({ kind: 'too-soon', earliestMonths: 6 });
-      if (tooSoon.kind !== 'too-soon') throw new Error('expected too-soon');
-      const retry = planTarget({ ...inputs, targetMonth: tooSoon.earliestTargetMonth });
-      expect(retry.kind).toBe('ok');
-      if (retry.kind === 'ok') expect(retry.safeToSpendCents).toBeGreaterThanOrEqual(0);
-    });
-
-    it('asks to check the numbers when fixed costs use all of take-home pay', () => {
-      expect(planTarget({ ...base, fixedCents: 500_000, items: [{ costCents: 100_000 }] })).toEqual({
-        kind: 'check-numbers',
-      });
-      expect(planTarget({ ...base, fixedCents: 600_000, items: [{ costCents: 100_000 }] })).toEqual({
-        kind: 'check-numbers',
-      });
-    });
-
-    it('asks to check the numbers when fixed costs exceed pay even if savings cover the target', () => {
-      expect(
-        planTarget({ ...base, fixedCents: 600_000, savingsCents: 500_000, items: [{ costCents: 100_000 }] }),
-      ).toEqual({ kind: 'check-numbers' });
-    });
+  it('allows pay equal to fixed costs when every item is covered', () => {
+    const result = planTarget({ ...base, fixedCents: 500_000, items: [item(100_000, 12, 2026, 100_000)] });
+    expect(result).toMatchObject({ kind: 'ok', monthlyAmountCents: 0, safeToSpendCents: 0 });
   });
 
   it('rejects negative or fractional cents', () => {
     expect(() => planTarget({ ...base, payCents: -1 })).toThrow(RangeError);
     expect(() => planTarget({ ...base, fixedCents: 1.5 })).toThrow(RangeError);
-    expect(() => planTarget({ ...base, items: [{ costCents: -5 }] })).toThrow(RangeError);
+    expect(() => planTarget({ ...base, items: [item(-5, 12)] })).toThrow(RangeError);
+    expect(() => planTarget({ ...base, items: [item(5, 12, 2026, -1)] })).toThrow(RangeError);
   });
 });
 
-describe('addMonths', () => {
-  it('moves across year boundaries', () => {
-    expect(addMonths({ year: 2026, month: 10 }, 0)).toEqual({ year: 2026, month: 10 });
-    expect(addMonths({ year: 2026, month: 10 }, 3)).toEqual({ year: 2027, month: 1 });
-    expect(addMonths({ year: 2026, month: 12 }, 12)).toEqual({ year: 2027, month: 12 });
+describe('soonestUnfinished', () => {
+  const plans = [
+    planItem(item(100_000, 6, 2027), 0, start),
+    planItem(item(100_000, 12, 2026, 100_000), 0, start),
+    planItem(item(100_000, 3, 2027), 0, start),
+    planItem(item(50_000, 3, 2027), 0, start),
+  ];
+
+  it('picks the item with the earliest date that still needs money, first listed on a tie', () => {
+    expect(soonestUnfinished(plans, start)).toBe(plans[2]);
+  });
+
+  it('skips items whose month has passed', () => {
+    expect(soonestUnfinished(plans, { year: 2027, month: 4 })).toBe(plans[0]);
+  });
+
+  it('is null when nothing still needs money', () => {
+    expect(soonestUnfinished([plans[1]!], start)).toBeNull();
   });
 });

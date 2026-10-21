@@ -6,15 +6,16 @@ import {
   canContinue,
   CUSTOM,
   CUSTOM_NAME_MAX,
+  FUND_CHOICE,
   isBefore,
   isPicked,
   ITEM_CHOICES,
   ITEM_NAME_MAX,
-  needsSavings,
   TARGET_YEARS_AHEAD,
   type ChoiceId,
   type NumberField,
   type PartialMonth,
+  type SetupItem,
   type SetupState,
 } from './state';
 
@@ -24,7 +25,10 @@ export interface SetupHandlers {
   setCustomName(name: string): void;
   setItemName(index: number, name: string): void;
   setItemCost(index: number, text: string): void;
-  setTarget(target: PartialMonth): void;
+  setItemSaved(index: number, text: string): void;
+  setUseFixedCostMonths(index: number, use: boolean): void;
+  setItemTarget(index: number, target: PartialMonth): void;
+  removeItem(index: number): void;
   setNumber(field: NumberField, text: string): void;
   next(): void;
   back(): void;
@@ -92,48 +96,73 @@ export function itemsScreen(state: SetupState, on: SetupHandlers, now: YearMonth
   );
 }
 
-export function comingSoonScreen(_state: SetupState, on: SetupHandlers): HTMLElement {
-  return screen(
-    h('h1', { tabindex: -1 }, 'Coming soon'),
-    h('p', { class: 'lead' }, 'This part of set-up is still being built.'),
-    actions(button('Back', on.back)),
-  );
-}
-
 export function pricesScreen(state: SetupState, on: SetupHandlers, now: YearMonth): HTMLElement {
   return screen(
     h('h1', { tabindex: -1 }, 'Put a rough price on each'),
     h('p', { class: 'lead' }, 'Think of the last time you paid for something similar. Roughly is fine.'),
+    h('div', { class: 'cards' }, ...state.items.map((item, i) => itemCard(item, i, state.items.length > 1, on, now))),
+    actions(button('Back', on.back), button('Continue', on.next, 'primary', !canContinue(state, now))),
+  );
+}
+
+function itemCard(item: SetupItem, i: number, removable: boolean, on: SetupHandlers, now: YearMonth): HTMLElement {
+  const isFund = item.choice === FUND_CHOICE;
+  return h(
+    'fieldset',
+    { class: 'card' },
+    h('legend', { class: 'visually-hidden' }, item.name || 'Item'),
+    h(
+      'label',
+      { class: 'field' },
+      h('span', { class: 'field-label' }, 'Name'),
+      h('input', {
+        type: 'text',
+        class: 'text-input',
+        value: item.name,
+        maxlength: ITEM_NAME_MAX,
+        autocomplete: 'off',
+        onInput: (e: Event) => on.setItemName(i, (e.target as HTMLInputElement).value),
+      }),
+    ),
+    isFund &&
+      h(
+        'label',
+        { class: 'check' },
+        h('input', {
+          type: 'checkbox',
+          checked: item.useFixedCostMonths,
+          onChange: (e: Event) => on.setUseFixedCostMonths(i, (e.target as HTMLInputElement).checked),
+        }),
+        h('span', {}, 'Not sure, use 3 months of my fixed costs'),
+      ),
+    !item.useFixedCostMonths && moneyField('Rough price', undefined, item.costCents, (text) => on.setItemCost(i, text)),
+    monthPicker('By when', item.target, now, (target) => on.setItemTarget(i, target)),
+    moneyField('Saved so far', 'Optional. Leave blank if none.', item.savedCents, (text) => on.setItemSaved(i, text)),
+    removable && h('div', { class: 'card-actions' }, button('Remove', () => on.removeItem(i))),
+  );
+}
+
+export function numbersScreen(state: SetupState, on: SetupHandlers, now: YearMonth): HTMLElement {
+  const { payCents, fixedCents } = state.numbers;
+  return screen(
+    h('h1', { tabindex: -1 }, 'Your starting numbers'),
+    h('p', { class: 'lead' }, 'Roughly is fine.'),
     h(
       'div',
       { class: 'cards' },
-      ...state.items.map((item, i) =>
-        h(
-          'fieldset',
-          { class: 'card' },
-          h('legend', { class: 'visually-hidden' }, item.name || 'Item'),
-          h(
-            'label',
-            { class: 'field' },
-            h('span', { class: 'field-label' }, 'Name'),
-            h('input', {
-              type: 'text',
-              class: 'text-input',
-              value: item.name,
-              maxlength: ITEM_NAME_MAX,
-              autocomplete: 'off',
-              onInput: (e: Event) => on.setItemName(i, (e.target as HTMLInputElement).value),
-            }),
-          ),
-          moneyField('Rough price', undefined, item.costCents, (text) => on.setItemCost(i, text)),
-        ),
+      moneyField('Take-home pay per month', undefined, payCents, (text) => on.setNumber('payCents', text)),
+      moneyField(
+        'Fixed costs per month',
+        'Rent or mortgage, bills, insurance, groceries, transport, supporting family, other essentials.',
+        fixedCents,
+        (text) => on.setNumber('fixedCents', text),
       ),
     ),
     actions(button('Back', on.back), button('Continue', on.next, 'primary', !canContinue(state, now))),
   );
 }
 
-const MONTH_NAMES = [
+export const MONTH_NAMES = [
   'January',
   'February',
   'March',
@@ -148,66 +177,34 @@ const MONTH_NAMES = [
   'December',
 ];
 
-export function dateScreen(state: SetupState, on: SetupHandlers, now: YearMonth): HTMLElement {
-  const { year, month } = state.target;
-  const years = Array.from({ length: TARGET_YEARS_AHEAD + 1 }, (_, i) => now.year + i);
-  const heading = state.items.length === 1 ? 'When would you like to have it by?' : 'When would you like to have these by?';
+let fieldId = 0;
 
-  return screen(
-    h('h1', { tabindex: -1 }, heading),
-    h('p', { class: 'lead' }, 'Pick one month for everything. You can change it later.'),
+function monthPicker(label: string, target: PartialMonth, now: YearMonth, onChange: (target: PartialMonth) => void) {
+  const { year, month } = target;
+  const id = `field-${++fieldId}`;
+  const years = Array.from({ length: TARGET_YEARS_AHEAD + 1 }, (_, i) => now.year + i);
+  return h(
+    'div',
+    { class: 'field', role: 'group', 'aria-labelledby': id },
+    h('span', { class: 'field-label', id }, label),
     h(
       'div',
       { class: 'field-row' },
       select(
         'Month',
         month,
-        MONTH_NAMES.map((name, i) => ({
-          value: i + 1,
-          label: name,
-          disabled: year !== null && isBefore({ year, month: i + 1 }, now),
-        })),
-        (value) => on.setTarget({ year, month: value }),
+        MONTH_NAMES.map((name, i) => ({ value: i + 1, label: name, disabled: year !== null && isBefore({ year, month: i + 1 }, now) })),
+        (value) => onChange({ year, month: value }),
       ),
       select(
         'Year',
         year,
         years.map((y) => ({ value: y, label: String(y) })),
-        (value) => on.setTarget({ year: value, month }),
+        (value) => onChange({ year: value, month }),
       ),
     ),
-    actions(button('Back', on.back), button('Continue', on.next, 'primary', !canContinue(state, now))),
   );
 }
-
-export function numbersScreen(state: SetupState, on: SetupHandlers, now: YearMonth): HTMLElement {
-  const { payCents, fixedCents, savingsCents } = state.numbers;
-  return screen(
-    h('h1', { tabindex: -1 }, 'Your starting numbers'),
-    h('p', { class: 'lead' }, 'Roughly is fine.'),
-    h(
-      'div',
-      { class: 'cards' },
-      moneyField('Take-home pay per month', undefined, payCents, (text) => on.setNumber('payCents', text)),
-      moneyField(
-        'Fixed costs per month',
-        'Rent or mortgage, bills, insurance, groceries, transport, supporting family, other essentials.',
-        fixedCents,
-        (text) => on.setNumber('fixedCents', text),
-      ),
-      needsSavings(state) &&
-        moneyField(
-          'Savings set aside for this',
-          "Money you've already put aside for these. Enter 0 if none.",
-          savingsCents,
-          (text) => on.setNumber('savingsCents', text),
-        ),
-    ),
-    actions(button('Back', on.back), button('Continue', on.next, 'primary', !canContinue(state, now))),
-  );
-}
-
-let fieldId = 0;
 
 function moneyField(label: string, help: string | undefined, cents: number | null, onInput: (text: string) => void) {
   const id = `field-${++fieldId}`;
@@ -241,15 +238,14 @@ function select(
   onChange: (value: number) => void,
 ) {
   return h(
-    'label',
-    { class: 'field' },
-    h('span', { class: 'field-label' }, label),
-    h(
-      'select',
-      { class: 'text-input', onChange: (e: Event) => onChange(Number((e.target as HTMLSelectElement).value)) },
-      h('option', { value: '', disabled: true, selected: value === null }, 'Choose'),
-      ...options.map((o) => h('option', { value: o.value, selected: o.value === value, disabled: o.disabled }, o.label)),
-    ),
+    'select',
+    {
+      class: 'text-input',
+      'aria-label': label,
+      onChange: (e: Event) => onChange(Number((e.target as HTMLSelectElement).value)),
+    },
+    h('option', { value: '', disabled: true, selected: value === null }, label),
+    ...options.map((o) => h('option', { value: o.value, selected: o.value === value, disabled: o.disabled }, o.label)),
   );
 }
 

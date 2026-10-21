@@ -1,29 +1,36 @@
 import { describe, expect, it } from 'vitest';
 import {
   canContinue,
-  isBefore,
-  nextStep,
-  setItemCost,
-  setItemName,
-  setNumber,
-  setTarget,
-  targetMonth,
   chooseRoute,
   CUSTOM,
   CUSTOM_NAME_MAX,
+  decisionOnAccept,
+  goTo,
   initialSetup,
+  isBefore,
   ITEM_CHOICES,
   loadSetup,
+  nextStep,
   previousStep,
+  removeItem,
   setCustomName,
-  stepAfterRoute,
+  setItemCost,
+  setItemName,
+  setItemSaved,
+  setItemTarget,
+  setNumber,
+  setUseFixedCostMonths,
   toggleItem,
+  toTargetInputs,
   type SetupState,
 } from './state';
 
 const now = { year: 2026, month: 10 };
-
 const onItems: SetupState = { ...initialSetup, step: 'items', route: 'items' };
+
+function priced(state: SetupState, index: number, cents: number, year = 2027, month = 6): SetupState {
+  return setItemTarget(setItemCost(state, index, cents), index, { year, month }, now);
+}
 
 describe('item choices', () => {
   it('lists the items in SPEC.md section 4, in order', () => {
@@ -39,193 +46,191 @@ describe('item choices', () => {
   });
 });
 
-describe('set-up routes', () => {
-  it('goes from the route choice to items, or to starting numbers', () => {
-    expect(stepAfterRoute('items')).toBe('items');
-    expect(stepAfterRoute('none')).toBe('numbers');
+describe('set-up steps', () => {
+  it('follows each route forward, with no separate date step', () => {
+    expect(nextStep({ ...onItems, step: 'route' })).toBe('items');
+    expect(nextStep(onItems)).toBe('prices');
+    expect(nextStep({ ...onItems, step: 'prices' })).toBe('numbers');
+    expect(nextStep({ ...onItems, step: 'numbers' })).toBe('result');
+    expect(nextStep({ ...onItems, step: 'result' })).toBe('done');
+    expect(nextStep({ ...initialSetup, route: 'none' })).toBe('numbers');
+  });
+
+  it('goes back along the route the person took', () => {
+    expect(previousStep(onItems)).toBe('route');
+    expect(previousStep({ ...onItems, step: 'prices' })).toBe('items');
+    expect(previousStep({ ...onItems, step: 'numbers' })).toBe('prices');
+    expect(previousStep({ ...initialSetup, route: 'none', step: 'numbers' })).toBe('route');
+    expect(previousStep({ ...onItems, step: 'result' })).toBe('numbers');
   });
 
   it('needs a route before continuing', () => {
     expect(canContinue(initialSetup, now)).toBe(false);
     expect(canContinue(chooseRoute(initialSetup, 'none'), now)).toBe(true);
   });
-
-  it('goes back along the route the person took', () => {
-    const picked = toggleItem(onItems, 'travel');
-    expect(previousStep(onItems)).toBe('route');
-    expect(previousStep({ ...picked, step: 'prices' })).toBe('items');
-    expect(previousStep({ ...picked, step: 'date' })).toBe('prices');
-    expect(previousStep({ ...picked, step: 'numbers' })).toBe('date');
-    expect(previousStep({ ...initialSetup, route: 'none', step: 'numbers' })).toBe('route');
-    expect(previousStep({ ...picked, step: 'result' })).toBe('numbers');
-  });
 });
 
 describe('picking items', () => {
-  it('needs at least one item before continuing', () => {
+  it('needs at least one item', () => {
     expect(canContinue(onItems, now)).toBe(false);
     expect(canContinue(toggleItem(onItems, 'travel'), now)).toBe(true);
   });
 
-  it('pre-fills the name of a picked item, with no price yet', () => {
-    const state = toggleItem(toggleItem(onItems, 'first-home'), 'wedding');
-    expect(state.items).toEqual([
-      { choice: 'first-home', name: 'First home', costCents: null },
-      { choice: 'wedding', name: 'Wedding', costCents: null },
+  it('pre-fills the name, with no price, savings or date yet', () => {
+    expect(toggleItem(onItems, 'first-home').items).toEqual([
+      {
+        choice: 'first-home',
+        name: 'First home',
+        costCents: null,
+        useFixedCostMonths: false,
+        savedCents: null,
+        target: { year: null, month: null },
+      },
     ]);
-  });
-
-  it('allows any number of items', () => {
-    let state = onItems;
-    for (const choice of ITEM_CHOICES) state = toggleItem(state, choice.id);
-    expect(state.items).toHaveLength(ITEM_CHOICES.length);
   });
 
   it('removes an item when it is tapped again', () => {
     expect(toggleItem(toggleItem(onItems, 'travel'), 'travel').items).toEqual([]);
   });
 
-  it('starts something else unnamed, and needs a name before continuing', () => {
+  it('needs a typed name for something else, capped in length', () => {
     const state = toggleItem(onItems, CUSTOM);
-    expect(state.items).toEqual([{ choice: CUSTOM, name: '', costCents: null }]);
     expect(canContinue(state, now)).toBe(false);
-    expect(canContinue(setCustomName(state, '   '), now)).toBe(false);
+    expect(canContinue(setCustomName(state, '  '), now)).toBe(false);
     expect(canContinue(setCustomName(state, 'Pottery kiln'), now)).toBe(true);
-  });
-
-  it('caps the typed name length', () => {
-    const state = setCustomName(toggleItem(onItems, CUSTOM), 'x'.repeat(100));
-    expect(state.items[0]?.name).toHaveLength(CUSTOM_NAME_MAX);
+    expect(setCustomName(state, 'x'.repeat(100)).items[0]?.name).toHaveLength(CUSTOM_NAME_MAX);
   });
 });
 
-describe('loadSetup', () => {
-  it('starts fresh when nothing is saved', () => {
-    expect(loadSetup(undefined)).toEqual(initialSetup);
-  });
-
-  it('resumes saved progress', () => {
-    const saved = toggleItem(onItems, 'travel');
-    expect(loadSetup(saved)).toEqual(saved);
-  });
-
-  it('starts fresh when saved progress is from the retired three-route set-up', () => {
-    expect(loadSetup({ step: 'areas', route: 'areas', areas: ['home'] })).toEqual(initialSetup);
-    expect(loadSetup({ step: 'items', route: 'one', items: [] })).toEqual(initialSetup);
-  });
-
-  it('drops retired monthly items and their type from saved progress', () => {
-    const saved = {
-      step: 'items',
-      route: 'items',
-      items: [
-        { choice: 'travel', name: 'Travel', kind: 'one-off', costCents: null },
-        { choice: 'family', name: 'Supporting family', kind: 'monthly', costCents: null },
-      ],
-    };
-    expect(loadSetup(saved).items).toEqual([{ choice: 'travel', name: 'Travel', costCents: null }]);
-  });
-
-  it('sends the person back to pick items when saved items were dropped after that step', () => {
-    const saved = {
-      step: 'prices',
-      route: 'items',
-      items: [{ choice: 'everyday', name: 'A better everyday life', kind: 'monthly', costCents: null }],
-    };
-    expect(loadSetup(saved)).toEqual({ ...initialSetup, step: 'items', route: 'items' });
-  });
-});
-
-describe('moving forward', () => {
-  it('follows each route through the set-up steps', () => {
-    const items = { ...onItems, step: 'route' as const };
-    expect(nextStep(items)).toBe('items');
-    expect(nextStep({ ...items, step: 'items' })).toBe('prices');
-    expect(nextStep({ ...items, step: 'prices' })).toBe('date');
-    expect(nextStep({ ...items, step: 'date' })).toBe('numbers');
-    expect(nextStep({ ...items, step: 'numbers' })).toBe('result');
-    expect(nextStep({ ...initialSetup, route: 'none' })).toBe('numbers');
-  });
-});
-
-describe('pricing items', () => {
+describe('pricing each item', () => {
   const onPrices: SetupState = { ...toggleItem(toggleItem(onItems, 'travel'), 'wedding'), step: 'prices' };
 
-  it('needs a price above zero on every item', () => {
+  it('needs a name, a price above zero and a date on every item, with savings optional', () => {
     expect(canContinue(onPrices, now)).toBe(false);
-    const one = setItemCost(onPrices, 0, 500_000);
+    const one = priced(onPrices, 0, 500_000);
     expect(canContinue(one, now)).toBe(false);
-    expect(canContinue(setItemCost(one, 1, 0), now)).toBe(false);
-    expect(canContinue(setItemCost(one, 1, 2_000_000), now)).toBe(true);
+    expect(canContinue(priced(one, 1, 0), now)).toBe(false);
+    expect(canContinue(setItemCost(one, 1, 2_000_000), now)).toBe(false);
+    const both = priced(one, 1, 2_000_000);
+    expect(canContinue(both, now)).toBe(true);
+    expect(canContinue(setItemName(both, 1, ' '), now)).toBe(false);
   });
 
-  it('lets the person rename an item, and needs a name', () => {
-    const priced = setItemCost(setItemCost(onPrices, 0, 1), 1, 1);
-    const renamed = setItemName(priced, 0, 'Japan in spring');
-    expect(renamed.items[0]?.name).toBe('Japan in spring');
-    expect(renamed.items[1]?.name).toBe('Wedding');
-    expect(canContinue(setItemName(priced, 1, ' '), now)).toBe(false);
-  });
-});
-
-describe('picking a target month', () => {
-  const onDate: SetupState = { ...onItems, step: 'date' };
-
-  it('needs both a month and a year', () => {
-    expect(canContinue(onDate, now)).toBe(false);
-    expect(canContinue(setTarget(onDate, { year: 2027, month: null }, now), now)).toBe(false);
-    expect(targetMonth(setTarget(onDate, { year: 2027, month: 6 }, now))).toEqual({ year: 2027, month: 6 });
+  it('keeps each item date separate', () => {
+    const state = priced(priced(onPrices, 0, 1, 2026, 12), 1, 1, 2028, 3);
+    expect(state.items.map((i) => i.target)).toEqual([
+      { year: 2026, month: 12 },
+      { year: 2028, month: 3 },
+    ]);
   });
 
-  it('allows this month or later', () => {
-    expect(canContinue(setTarget(onDate, { year: 2026, month: 10 }, now), now)).toBe(true);
-    expect(canContinue(setTarget(onDate, { year: 2028, month: 1 }, now), now)).toBe(true);
+  it('clears the month when a change of year would put it in the past', () => {
+    const later = setItemTarget(onPrices, 0, { year: 2027, month: 9 }, now);
+    expect(setItemTarget(later, 0, { year: 2026, month: 9 }, now).items[0]?.target).toEqual({ year: 2026, month: null });
   });
 
-  it('clears the month when the choice would be in the past, such as after changing the year', () => {
-    const later = setTarget(onDate, { year: 2027, month: 9 }, now);
-    const earlier = setTarget(later, { year: 2026, month: 9 }, now);
-    expect(earlier.target).toEqual({ year: 2026, month: null });
-    expect(canContinue(earlier, now)).toBe(false);
+  it('does not continue with a saved date that has since passed', () => {
+    const state = setItemTarget(setItemCost(onPrices, 0, 1), 0, { year: 2026, month: 10 }, now);
+    const both = priced(state, 1, 1);
+    expect(canContinue(both, now)).toBe(true);
+    expect(canContinue(both, { year: 2026, month: 11 })).toBe(false);
   });
 
-  it('does not continue with a saved month that has since passed', () => {
-    const saved: SetupState = { ...onDate, target: { year: 2026, month: 9 } };
-    expect(canContinue(saved, now)).toBe(false);
+  it('lets the emergency fund use months of fixed costs in place of a price', () => {
+    const fund: SetupState = { ...toggleItem(onItems, 'emergency-fund'), step: 'prices' };
+    const dated = setItemTarget(fund, 0, { year: 2027, month: 3 }, now);
+    expect(canContinue(dated, now)).toBe(false);
+    expect(canContinue(setUseFixedCostMonths(dated, 0, true), now)).toBe(true);
+  });
+
+  it('removes an item from the list', () => {
+    expect(removeItem(onPrices, 0).items.map((i) => i.name)).toEqual(['Wedding']);
   });
 
   it('compares months across years', () => {
     expect(isBefore({ year: 2026, month: 12 }, { year: 2027, month: 1 })).toBe(true);
-    expect(isBefore({ year: 2027, month: 1 }, { year: 2026, month: 12 })).toBe(false);
     expect(isBefore({ year: 2026, month: 10 }, { year: 2026, month: 10 })).toBe(false);
   });
 });
 
 describe('starting numbers', () => {
-  const onNumbers: SetupState = { ...onItems, step: 'numbers' };
-
-  it('needs pay, fixed costs and savings on the items route, where savings can be zero', () => {
-    let state = setNumber(setNumber(onNumbers, 'payCents', 500_000), 'fixedCents', 300_000);
-    expect(canContinue(state, now)).toBe(false);
-    state = setNumber(state, 'savingsCents', 0);
-    expect(canContinue(state, now)).toBe(true);
-  });
-
-  it('does not ask for savings on the not sure yet route', () => {
-    const state: SetupState = { ...initialSetup, route: 'none', step: 'numbers' };
-    expect(canContinue(state, now)).toBe(false);
-    expect(canContinue(setNumber(setNumber(state, 'payCents', 1), 'fixedCents', 0), now)).toBe(true);
-  });
-
-  it('treats a cleared field as missing', () => {
-    const state = setNumber(setNumber(setNumber(onNumbers, 'payCents', 1), 'fixedCents', 1), 'savingsCents', 1);
-    expect(canContinue(setNumber(state, 'payCents', null), now)).toBe(false);
+  it('needs only pay and fixed costs, on both routes', () => {
+    for (const route of ['items', 'none'] as const) {
+      const state: SetupState = { ...initialSetup, route, step: 'numbers' };
+      expect(canContinue(setNumber(state, 'payCents', 1), now)).toBe(false);
+      expect(canContinue(setNumber(setNumber(state, 'payCents', 1), 'fixedCents', 0), now)).toBe(true);
+    }
   });
 });
 
-describe('loadSetup defaults', () => {
-  it('fills in the target and numbers for progress saved before they existed', () => {
-    const saved = { step: 'items', route: 'items', items: [] };
+describe('toTargetInputs', () => {
+  it('passes each item with its own date and savings, treating blank savings as zero', () => {
+    let state: SetupState = { ...toggleItem(toggleItem(onItems, 'travel'), 'emergency-fund'), step: 'numbers' };
+    state = setItemSaved(priced(state, 0, 600_000, 2027, 6), 0, 100_000);
+    state = setUseFixedCostMonths(setItemTarget(state, 1, { year: 2027, month: 3 }, now), 1, true);
+    state = setNumber(setNumber(state, 'payCents', 500_000), 'fixedCents', 300_000);
+    expect(toTargetInputs(state, now)).toEqual({
+      payCents: 500_000,
+      fixedCents: 300_000,
+      startMonth: now,
+      items: [
+        { costCents: 600_000, useFixedCostMonths: false, savedCents: 100_000, targetMonth: { year: 2027, month: 6 } },
+        { costCents: null, useFixedCostMonths: true, savedCents: 0, targetMonth: { year: 2027, month: 3 } },
+      ],
+    });
+  });
+
+  it('is null while anything is missing', () => {
+    expect(toTargetInputs({ ...toggleItem(onItems, 'travel'), step: 'numbers' }, now)).toBeNull();
+  });
+});
+
+describe('target decision', () => {
+  it('is accepted when the plan is accepted as first shown, and adjusted after changes', () => {
+    const atResult: SetupState = { ...onItems, step: 'result' };
+    expect(decisionOnAccept(atResult)).toBe('accepted');
+    const changed = goTo(atResult, 'prices');
+    expect(changed.changedAfterResult).toBe(true);
+    expect(decisionOnAccept({ ...changed, step: 'result' })).toBe('adjusted');
+  });
+
+  it('does not count moving between earlier steps as a change', () => {
+    expect(goTo({ ...onItems, step: 'prices' }, 'items').changedAfterResult).toBe(false);
+  });
+});
+
+describe('loadSetup', () => {
+  it('starts fresh when nothing is saved, or saved progress is from a retired set-up', () => {
+    expect(loadSetup(undefined)).toEqual(initialSetup);
+    expect(loadSetup({ step: 'areas', route: 'areas', areas: ['home'] })).toEqual(initialSetup);
+  });
+
+  it('resumes saved progress', () => {
+    const saved = priced({ ...toggleItem(onItems, 'travel'), step: 'prices' }, 0, 100);
+    expect(loadSetup(saved)).toEqual(saved);
+  });
+
+  it('moves progress saved on the removed date step back to pricing, with empty per-item fields', () => {
+    const saved = {
+      step: 'date',
+      route: 'items',
+      items: [{ choice: 'travel', name: 'Travel', costCents: 100 }],
+      target: { year: 2027, month: 1 },
+      numbers: { payCents: 1, fixedCents: 2, savingsCents: 3 },
+    };
+    expect(loadSetup(saved)).toEqual({
+      ...initialSetup,
+      step: 'prices',
+      route: 'items',
+      items: [
+        { choice: 'travel', name: 'Travel', costCents: 100, useFixedCostMonths: false, savedCents: null, target: { year: null, month: null } },
+      ],
+      numbers: { payCents: 1, fixedCents: 2 },
+    });
+  });
+
+  it('sends the person back to pick items when saved items were dropped', () => {
+    const saved = { step: 'prices', route: 'items', items: [{ choice: 'family', name: 'Supporting family' }] };
     expect(loadSetup(saved)).toEqual({ ...initialSetup, step: 'items', route: 'items' });
   });
 });

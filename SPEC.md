@@ -74,12 +74,12 @@ Accounts, logins, bank connections, account lists, categories, several goals, pr
 
 1. **Choose a route.** "What would make the next few years feel good?" Options: "I've got things in mind" and "Not sure yet".
 2. **Pick items** ("I've got things in mind" only). Question: "What are you saving up for?" Hint: "Pick all that apply. You'll put a rough price on each next." Multi-select chips, all one-off: Travel, First home (BTO, renovation, moving out), Emergency fund, Wedding, Further studies, Career break, Big purchase (car, gadgets), and Something else, where the person types their own name.
-3. **Price each one.** Each picked item arrives with its name pre-filled and editable. Enter a rough cost. Prompt: think of the last time you paid for something similar. No example price ranges.
-4. **Set a date.** One month and year for all one-off items, picked with a month and year picker. The target date `T` is the last day of that month.
-5. **Starting numbers.** Take-home pay per month, fixed costs per month including everyday essentials (show what counts: rent or mortgage, bills, insurance, groceries, transport, supporting family, other essentials), and savings set aside for this. "Roughly is fine."
-6. **See the result.** Target, monthly amount, target date and daily number, or the floor and split for "Not sure yet". Every cost and the date can be edited. Then Accept, then a link to the rating form (URL configurable).
+3. **Price each one.** Each picked item gets a card with its name (pre-filled and editable), a rough price, "By when" (month and year, from this month up to 10 years ahead) and "Saved so far" (optional, blank counts as 0). The Emergency fund card also offers "Not sure, use 3 months of my fixed costs" in place of a price. Prompt: think of the last time you paid for something similar. No example price ranges.
+4. Removed on 2026-10-21. Each item now has its own date on step 3.
+5. **Starting numbers.** Take-home pay per month and fixed costs per month including everyday essentials (show what counts: rent or mortgage, bills, insurance, groceries, transport, supporting family, other essentials), on both routes. "Roughly is fine."
+6. **See the result.** The daily number, the total set aside each month and what is left to spend, then each item with its price, date, saved so far and monthly amount, or "Already covered". The floor and split for "Not sure yet". Every item, date and number can be changed. Then Accept, then the home-screen guide and a link to the rating form (URL configurable, pre-filled with the participant code).
 
-"Not sure yet" goes 1 → 5 → 6. "I've got things in mind" goes 1 → 2 → 3 → 4 → 5 → 6.
+"Not sure yet" goes 1 → 5 → 6. "I've got things in mind" goes 1 → 2 → 3 → 5 → 6.
 
 Set-up progress is saved on the device, so leaving part-way resumes where the person stopped.
 
@@ -90,15 +90,16 @@ Put all of this in a pure module (`src/calc/`) with unit tests. Screens call it 
 ### Inputs
 - `P` take-home pay per month
 - `F` fixed costs per month, including everyday essentials
-- `S` savings set aside for the target
-- Items `O_i`, all one-off
-- Target date `T` (last day of the chosen month), today `t`
+- Items `i`, all one-off, each with a price `price_i`, saved so far `S_i` (0 if blank) and a target date `T_i` (last day of its chosen month)
+- An emergency fund item can use `price_i = 3 × F` in place of a typed price
+- Today `t`
 - `spent` = sum of optional spends logged in the current calendar month
 
 ### Target route ("I've got things in mind")
-- `target = Σ O_i`
-- `n` = whole months from the start month to `T`, counting the start month and the month of `T`, minimum 1. Example: start in October, `T` in December, `n = 3`.
-- `A` (monthly amount) = `max(0, target − S) / n`
+- `n_i` = whole months from the start month to `T_i`, counting the start month and the month of `T_i`, minimum 1. Example: start in October, `T_i` in December, `n_i = 3`.
+- `A_i` = `max(0, price_i − S_i) / n_i`, rounded up to the cent
+- An item with `S_i ≥ price_i` is already covered and has `A_i = 0`
+- `A` (monthly amount) = `Σ A_i`
 - `B` (monthly safe-to-spend) = `P − F − A`
 
 ### Floor route ("Not sure yet")
@@ -116,7 +117,7 @@ Put all of this in a pure module (`src/calc/`) with unit tests. Screens call it 
 ### Pace and permission (stories 7 and 11)
 - `even_share = B × days_elapsed / days_in_month`, where `days_elapsed` includes today
 - Ahead when `spent < even_share − B / days_in_month`. Show "free to enjoy" = `even_share − spent`.
-- Over when `spent > B`. Target date delay in weeks = `(spent − B) / A × 4.35`, rounded up to the next whole week. Not shown on the floor route, or when `A = 0`.
+- Over when `spent > B`. The overspend moves the soonest unfinished item's date: delay in weeks = `(spent − B) / A_i × 4.35` using that item's `A_i`, rounded up to the next whole week. The soonest unfinished item is the one with the earliest `T_i` that still has `A_i > 0` and whose month has not passed, the first listed on a tie. Not shown on the floor route, or when no item is unfinished.
 
 ### Rounding
 - All amounts are stored and calculated in whole cents.
@@ -124,8 +125,8 @@ Put all of this in a pure module (`src/calc/`) with unit tests. Screens call it 
 - The target date delay is rounded up to the next whole week.
 
 ### Edge cases
-- `B < 0` at set-up: if `P − F > 0`, show the earliest workable date, `n_min = ceil((target − S) / (P − F))` months, and let the person choose that date or trim items. Otherwise ask them to check their numbers.
-- `target ≤ S`: say savings already cover it, and offer to raise the target or start from the floor.
+- `B < 0` at set-up: if `P − F > 0`, show "Your goals need S$[A] a month and you have S$[P − F]", and let the person move dates or remove items. Otherwise ask them to check their numbers.
+- `S_i ≥ price_i`: show that item as already covered, adding 0 to `A`.
 - `daily ≤ 0`: show that this month's spending is used up, kindly, with the target date effect if any.
 - No entries for some days: show "not logged" for those days, and the time the number was last updated.
 
@@ -196,3 +197,6 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 - 2026-10-20: Set-up has two routes, "I've got things in mind" and "Not sure yet". The areas list and the one-item route are replaced by concrete item chips with a pre-set type. `start_route` takes `items` or `none`.
 - 2026-10-20: All items are one-off. Monthly items and `M` are removed, so `B = P − F − A`. Supporting family is counted in fixed costs at step 5.
 - 2026-10-20: Set-up step 3 needs a price above zero for every item. Step 4 offers this month up to 10 years ahead, and clears the month if a change of year would put it in the past. Step 5 asks for savings only on "I've got things in mind", because the floor route does not use them.
+- 2026-10-21: Each item has its own price, date and saved so far, and the shared date step is removed. `A = Σ A_i`. Overspend moves the soonest unfinished item's date using its `A_i`. When the goals need more than `P − F`, the person moves dates or removes items, with no automatic earliest date.
+- 2026-10-21: The result screen's secondary "Try a safety floor instead" logs `target_decision` as `rejected` and switches to the floor route. Accepting logs `accepted`, or `adjusted` if anything was changed after the result was first shown. The floor route logs no `target_decision`.
+- 2026-10-21: Shown amounts are whole dollars: amounts to set aside round up, and amounts to spend round down. Typed amounts show their cents.

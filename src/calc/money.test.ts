@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDollarsInput, MAX_INPUT_CENTS, parseDollars } from './money';
+import { formatDollarsInput, formatSGD, MAX_INPUT_CENTS, parseDollars } from './money';
 
 describe('parseDollars', () => {
   it.each([
@@ -41,5 +41,24 @@ describe('formatDollarsInput', () => {
     for (const cents of [0, 1, 99, 100, 123_456, 1_000_000_00]) {
       expect(parseDollars(formatDollarsInput(cents))).toBe(cents);
     }
+  });
+});
+
+describe('formatSGD', () => {
+  it('shows exact amounts with cents only when there are any', () => {
+    expect(formatSGD(120_000)).toBe('S$1,200');
+    expect(formatSGD(4_500_050)).toBe('S$45,000.50');
+    expect(formatSGD(5)).toBe('S$0.05');
+  });
+
+  it('rounds up or down to whole dollars when asked', () => {
+    expect(formatSGD(33_334, 'up')).toBe('S$334');
+    expect(formatSGD(33_334, 'down')).toBe('S$333');
+    expect(formatSGD(33_300, 'up')).toBe('S$333');
+  });
+
+  it('rounds negative amounts away from what would overstate them', () => {
+    expect(formatSGD(-150, 'down')).toBe('−S$2');
+    expect(formatSGD(-150, 'up')).toBe('−S$1');
   });
 });

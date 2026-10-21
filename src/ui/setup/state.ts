@@ -1,5 +1,6 @@
 import type { YearMonth } from '../../calc/dates';
-import { ROUTES, type Route } from '../../events';
+import type { Item, TargetInputs } from '../../calc/target';
+import { ROUTES, type Decision, type Route } from '../../events';
 
 export const ITEM_CHOICES = [
   { id: 'travel', name: 'Travel' },
@@ -13,84 +14,88 @@ export const ITEM_CHOICES = [
 
 export const CUSTOM = 'custom';
 export const CUSTOM_NAME_MAX = 40;
-
+export const ITEM_NAME_MAX = 40;
+export const TARGET_YEARS_AHEAD = 10;
+export const FUND_CHOICE = 'emergency-fund';
 
 export type ChoiceId = (typeof ITEM_CHOICES)[number]['id'] | typeof CUSTOM;
 
 const CHOICE_IDS: readonly string[] = [...ITEM_CHOICES.map((c) => c.id), CUSTOM];
-
-export interface SetupItem {
-  choice: ChoiceId;
-  name: string;
-  costCents: number | null;
-}
-
-export type SetupStep = 'route' | 'items' | 'prices' | 'date' | 'numbers' | 'result';
-
-const STEPS: readonly SetupStep[] = ['route', 'items', 'prices', 'date', 'numbers', 'result'];
 
 export interface PartialMonth {
   year: number | null;
   month: number | null;
 }
 
+export interface SetupItem {
+  choice: ChoiceId;
+  name: string;
+  costCents: number | null;
+  useFixedCostMonths: boolean;
+  savedCents: number | null;
+  target: PartialMonth;
+}
+
 export interface StartingNumbers {
   payCents: number | null;
   fixedCents: number | null;
-  savingsCents: number | null;
 }
 
 export type NumberField = keyof StartingNumbers;
+
+export type SetupStep = 'route' | 'items' | 'prices' | 'numbers' | 'result' | 'done';
+
+const STEPS: readonly SetupStep[] = ['route', 'items', 'prices', 'numbers', 'result', 'done'];
 
 export interface SetupState {
   step: SetupStep;
   route: Route | null;
   items: SetupItem[];
-  target: PartialMonth;
   numbers: StartingNumbers;
+  changedAfterResult: boolean;
 }
 
 export const SETUP_KEY = 'setup';
+
+const emptyMonth: PartialMonth = { year: null, month: null };
 
 export const initialSetup: SetupState = {
   step: 'route',
   route: null,
   items: [],
-  target: { year: null, month: null },
-  numbers: { payCents: null, fixedCents: null, savingsCents: null },
+  numbers: { payCents: null, fixedCents: null },
+  changedAfterResult: false,
 };
 
-export const ITEM_NAME_MAX = 40;
-export const TARGET_YEARS_AHEAD = 10;
+function newItem(choice: ChoiceId, name: string): SetupItem {
+  return { choice, name, costCents: null, useFixedCostMonths: false, savedCents: null, target: emptyMonth };
+}
 
 export function loadSetup(saved: unknown): SetupState {
   if (typeof saved !== 'object' || saved === null) return initialSetup;
-  const s = saved as Partial<SetupState>;
+  const s = saved as Omit<Partial<SetupState>, 'step'> & { step?: string };
+  const step = s.step === 'date' ? 'prices' : s.step;
   const validRoute = s.route === null || ROUTES.includes(s.route as Route);
-  const validStep = STEPS.includes(s.step as SetupStep);
-  if (!validRoute || !validStep || !Array.isArray(s.items)) return initialSetup;
+  if (!validRoute || !STEPS.includes(step as SetupStep) || !Array.isArray(s.items)) return initialSetup;
+
   const items = s.items
     .filter((item) => CHOICE_IDS.includes(item.choice))
-    .map(({ choice, name, costCents }) => ({ choice, name, costCents }));
+    .map((item) => ({ ...newItem(item.choice, item.name), ...item, target: { ...emptyMonth, ...item.target } }));
   const restored: SetupState = {
     ...initialSetup,
-    ...(s as SetupState),
+    route: s.route ?? null,
+    step: step as SetupStep,
     items,
-    target: { ...initialSetup.target, ...s.target },
-    numbers: { ...initialSetup.numbers, ...s.numbers },
+    numbers: { payCents: s.numbers?.payCents ?? null, fixedCents: s.numbers?.fixedCents ?? null },
+    changedAfterResult: s.changedAfterResult ?? false,
   };
-  if (items.length !== s.items.length && s.step !== 'route' && s.step !== 'items') {
-    return { ...restored, step: 'items' };
-  }
+  const pastItems = restored.step !== 'route' && restored.step !== 'items';
+  if (restored.route === 'items' && pastItems && items.length !== s.items.length) return { ...restored, step: 'items' };
   return restored;
 }
 
 export function chooseRoute(state: SetupState, route: Route): SetupState {
   return { ...state, route };
-}
-
-export function stepAfterRoute(route: Route): SetupStep {
-  return route === 'items' ? 'items' : 'numbers';
 }
 
 export function isPicked(state: SetupState, choice: ChoiceId): boolean {
@@ -100,8 +105,7 @@ export function isPicked(state: SetupState, choice: ChoiceId): boolean {
 export function toggleItem(state: SetupState, choice: ChoiceId): SetupState {
   if (isPicked(state, choice)) return { ...state, items: state.items.filter((item) => item.choice !== choice) };
   const preset = ITEM_CHOICES.find((c) => c.id === choice);
-  const item: SetupItem = { choice, name: preset?.name ?? '', costCents: null };
-  return { ...state, items: [...state.items, item] };
+  return { ...state, items: [...state.items, newItem(choice, preset?.name ?? '')] };
 }
 
 export function setCustomName(state: SetupState, name: string): SetupState {
@@ -109,21 +113,34 @@ export function setCustomName(state: SetupState, name: string): SetupState {
   return { ...state, items: state.items.map((item) => (item.choice === CUSTOM ? { ...item, name: trimmed } : item)) };
 }
 
+function updateItem(state: SetupState, index: number, change: Partial<SetupItem>): SetupState {
+  return { ...state, items: state.items.map((item, i) => (i === index ? { ...item, ...change } : item)) };
+}
+
 export function setItemName(state: SetupState, index: number, name: string): SetupState {
-  return {
-    ...state,
-    items: state.items.map((item, i) => (i === index ? { ...item, name: name.slice(0, ITEM_NAME_MAX) } : item)),
-  };
+  return updateItem(state, index, { name: name.slice(0, ITEM_NAME_MAX) });
 }
 
 export function setItemCost(state: SetupState, index: number, costCents: number | null): SetupState {
-  return { ...state, items: state.items.map((item, i) => (i === index ? { ...item, costCents } : item)) };
+  return updateItem(state, index, { costCents });
 }
 
-export function setTarget(state: SetupState, target: PartialMonth, thisMonth: YearMonth): SetupState {
+export function setItemSaved(state: SetupState, index: number, savedCents: number | null): SetupState {
+  return updateItem(state, index, { savedCents });
+}
+
+export function setUseFixedCostMonths(state: SetupState, index: number, useFixedCostMonths: boolean): SetupState {
+  return updateItem(state, index, { useFixedCostMonths });
+}
+
+export function setItemTarget(state: SetupState, index: number, target: PartialMonth, thisMonth: YearMonth): SetupState {
   const { year, month } = target;
   const inPast = year !== null && month !== null && isBefore({ year, month }, thisMonth);
-  return { ...state, target: inPast ? { year, month: null } : target };
+  return updateItem(state, index, { target: inPast ? { year, month: null } : target });
+}
+
+export function removeItem(state: SetupState, index: number): SetupState {
+  return { ...state, items: state.items.filter((_, i) => i !== index) };
 }
 
 export function setNumber(state: SetupState, field: NumberField, cents: number | null): SetupState {
@@ -134,28 +151,30 @@ export function isBefore(a: YearMonth, b: YearMonth): boolean {
   return a.year * 12 + a.month < b.year * 12 + b.month;
 }
 
-export function targetMonth(state: SetupState): YearMonth | null {
-  const { year, month } = state.target;
+export function itemMonth(item: SetupItem): YearMonth | null {
+  const { year, month } = item.target;
   return year === null || month === null ? null : { year, month };
 }
 
-export function needsSavings(state: SetupState): boolean {
-  return state.route === 'items';
+function itemReady(item: SetupItem, thisMonth: YearMonth): boolean {
+  const month = itemMonth(item);
+  const priced = item.useFixedCostMonths || (item.costCents !== null && item.costCents > 0);
+  return item.name.trim() !== '' && priced && month !== null && !isBefore(month, thisMonth);
 }
 
 export function nextStep(state: SetupState): SetupStep {
   switch (state.step) {
     case 'route':
-      return state.route ? stepAfterRoute(state.route) : 'route';
+      return state.route === 'items' ? 'items' : state.route === 'none' ? 'numbers' : 'route';
     case 'items':
       return 'prices';
     case 'prices':
-      return 'date';
-    case 'date':
       return 'numbers';
     case 'numbers':
-    case 'result':
       return 'result';
+    case 'result':
+    case 'done':
+      return 'done';
   }
 }
 
@@ -165,14 +184,13 @@ export function previousStep(state: SetupState): SetupStep {
       return 'route';
     case 'prices':
       return 'items';
-    case 'date':
-      return 'prices';
     case 'numbers':
-      return state.route === 'none' ? 'route' : 'date';
+      return state.route === 'none' ? 'route' : 'prices';
     case 'result':
       return 'numbers';
     case 'route':
-      return 'route';
+    case 'done':
+      return state.step;
   }
 }
 
@@ -183,16 +201,38 @@ export function canContinue(state: SetupState, thisMonth: YearMonth): boolean {
     case 'items':
       return state.items.length > 0 && state.items.every((item) => item.name.trim() !== '');
     case 'prices':
-      return state.items.every((item) => item.name.trim() !== '' && item.costCents !== null && item.costCents > 0);
-    case 'date': {
-      const target = targetMonth(state);
-      return target !== null && !isBefore(target, thisMonth);
-    }
-    case 'numbers': {
-      const { payCents, fixedCents, savingsCents } = state.numbers;
-      return payCents !== null && fixedCents !== null && (!needsSavings(state) || savingsCents !== null);
-    }
+      return state.items.length > 0 && state.items.every((item) => itemReady(item, thisMonth));
+    case 'numbers':
+      return state.numbers.payCents !== null && state.numbers.fixedCents !== null;
     case 'result':
+    case 'done':
       return true;
   }
+}
+
+export function goTo(state: SetupState, step: SetupStep): SetupState {
+  return { ...state, step, changedAfterResult: state.changedAfterResult || state.step === 'result' };
+}
+
+export function decisionOnAccept(state: SetupState): Decision {
+  return state.changedAfterResult ? 'adjusted' : 'accepted';
+}
+
+export function toTargetInputs(state: SetupState, startMonth: YearMonth): TargetInputs | null {
+  const { payCents, fixedCents } = state.numbers;
+  if (payCents === null || fixedCents === null) return null;
+  if (!state.items.length || !state.items.every((item) => itemReady(item, startMonth))) return null;
+  const items: Item[] = state.items.flatMap((item) => {
+    const targetMonth = itemMonth(item);
+    if (!targetMonth) return [];
+    return [
+      {
+        costCents: item.useFixedCostMonths ? null : item.costCents,
+        useFixedCostMonths: item.useFixedCostMonths,
+        savedCents: item.savedCents ?? 0,
+        targetMonth,
+      },
+    ];
+  });
+  return { payCents, fixedCents, items, startMonth };
 }
