@@ -460,3 +460,26 @@ select.text-input {
 .notice {
   border-color: var(--ink);
 }
+
+.screen-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.menu-button {
+  min-width: 48px;
+  padding: 0 12px;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.menu {
+  justify-items: end;
+  margin-bottom: 12px;
+}
+
+.screen > .actions-inline {
+  margin-bottom: 12px;
+}

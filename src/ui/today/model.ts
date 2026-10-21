@@ -22,6 +22,7 @@ export interface TodayModel {
   neededCents: number | null;
   availableCents: number | null;
   floorCents: number | null;
+  safetyCoversGoals: boolean;
   goals: GoalView[];
 }
 
@@ -55,6 +56,7 @@ export function buildToday({ state, spentCents, today }: TodayInputs): TodayMode
     neededCents: null,
     availableCents: null,
     floorCents: null,
+    safetyCoversGoals: false,
     goals: state.items.map((item) => ({ id: item.id, name: item.name, priced: false })),
   };
 
@@ -104,6 +106,7 @@ export function buildToday({ state, spentCents, today }: TodayInputs): TodayMode
       tiedTo: soonestIndex >= 0 ? priced[soonestIndex]!.item.name : null,
       setAsideCents: plan.monthlyAmountCents,
       leftCents: plan.safeToSpendCents,
+      safetyCoversGoals: plan.safetySavingCents >= plan.goalsMonthlyCents,
     },
     plan.safeToSpendCents,
     soonest?.monthlyAmountCents ?? null,

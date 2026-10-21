@@ -48,3 +48,7 @@
 - `target_decision` now records goal-level choices: accepted when a goal is first priced, adjusted when a priced goal is edited, and rejected when a goal is removed. "Try a safety floor instead" is dropped, because removing every priced goal already returns to the floor.
 - The first evaluation question becomes "Does a person price at least one item in the first session?", since set-up no longer forces a target.
 - The home-screen guide and rating link move to a one-time card on the first visit to Today.
+- Once goals are priced, the amount set aside is whichever is more: the goals' total or the 20% safety saving from the floor route. Without this, pricing a small or far-off goal dropped the safety saving and raised the daily number, so adding a goal could mean saving less than having none. When a newly priced goal leaves the number unchanged, Today says the safety saving already covers it, so the price still has a visible effect.
+- `rejected` is logged only when a priced goal is removed. An unpriced goal was never part of a target, so removing it is not a target decision.
+- Set-up screen 2 has a Back button, so people can change their picks before seeing Today.
+- Today has a small menu with "Start over", behind a confirmation. It clears goals, numbers and spends, and keeps the participant code and usage log, so a fresh start does not break the study data.

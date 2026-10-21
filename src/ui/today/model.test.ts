@@ -41,14 +41,38 @@ describe('buildToday', () => {
     let state = withNumbers(addItem(addItem(initialState, 'travel'), 'wedding'));
     state = priced(state, 'travel', 600_000, 2027, 6, 100_000);
     const model = buildToday({ state, spentCents: 0, today });
-    expect(model).toMatchObject({ mode: 'target', status: 'ok', tiedTo: 'Travel', setAsideCents: 55_556, leftCents: 254_444 });
+    expect(model).toMatchObject({
+      mode: 'target',
+      status: 'ok',
+      tiedTo: 'Travel',
+      setAsideCents: 124_000,
+      leftCents: 186_000,
+      safetyCoversGoals: true,
+    });
     expect(model.goals[0]).toMatchObject({ priced: true, plan: { monthlyAmountCents: 55_556 } });
     expect(model.goals[1]).toEqual({ id: 'wedding', name: 'Wedding', priced: false });
   });
 
+  it('keeps the floor saving when it is more than the priced goals need, so the daily number does not rise', () => {
+    const floorOnly = withNumbers(addItem(initialState, 'travel'));
+    const pricedState = priced(floorOnly, 'travel', 600_000, 2027, 6, 100_000);
+    expect(buildToday({ state: pricedState, spentCents: 0, today }).dailyCents).toBe(
+      buildToday({ state: floorOnly, spentCents: 0, today }).dailyCents,
+    );
+  });
+
+  it('sets aside the goals total once it is more than the floor saving', () => {
+    const state = priced(withNumbers(addItem(initialState, 'travel')), 'travel', 1_200_000, 2027, 1);
+    expect(buildToday({ state, spentCents: 0, today })).toMatchObject({
+      setAsideCents: 300_000,
+      leftCents: 10_000,
+      safetyCoversGoals: false,
+    });
+  });
+
   it('prorates the daily number from the set-up day', () => {
     const state = priced(withNumbers(addItem(initialState, 'travel')), 'travel', 600_000, 2027, 6, 100_000);
-    expect(buildToday({ state, spentCents: 0, today }).dailyCents).toBe(Math.floor(Math.floor((254_444 * 11) / 31) / 11));
+    expect(buildToday({ state, spentCents: 0, today }).dailyCents).toBe(Math.floor(Math.floor((186_000 * 11) / 31) / 11));
   });
 
   it('ties the number to the soonest unfinished goal and uses it for the delay', () => {
@@ -82,7 +106,7 @@ describe('buildToday', () => {
 
   it('has no goal to tie to when every priced goal is covered', () => {
     const state = priced(withNumbers(addItem(initialState, 'travel')), 'travel', 100_000, 2027, 1, 100_000);
-    expect(buildToday({ state, spentCents: 0, today })).toMatchObject({ mode: 'target', tiedTo: null, setAsideCents: 0 });
+    expect(buildToday({ state, spentCents: 0, today })).toMatchObject({ mode: 'target', tiedTo: null, setAsideCents: 124_000 });
   });
 });
 

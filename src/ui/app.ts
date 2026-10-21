@@ -11,6 +11,7 @@ import {
   canSaveItem,
   chooseNotSure,
   editItem,
+  initialState,
   isPriced,
   itemMonth,
   loadState,
@@ -27,7 +28,8 @@ import {
   type StartingNumbers,
 } from './state';
 import { buildToday, spentThisMonth } from './today/model';
-import { addGoalScreen, editGoalScreen, todayScreen } from './today/screen';
+import { addGoalScreen, editGoalScreen, startOverScreen, todayScreen } from './today/screen';
+import { startOver } from './start-over';
 
 export interface AppContext {
   root: HTMLElement;
@@ -41,12 +43,22 @@ type View =
   | { kind: 'today' }
   | { kind: 'edit'; draft: GoalItem }
   | { kind: 'add' }
-  | { kind: 'numbers'; before: StartingNumbers };
+  | { kind: 'numbers'; before: StartingNumbers }
+  | { kind: 'start-over' };
 
-export function changeNotice(name: string, month: string, before: number | null, after: number | null): string {
+export function changeNotice(
+  name: string,
+  month: string,
+  before: number | null,
+  after: number | null,
+  safetyCovers: boolean,
+): string {
   const lead = `Adding ${name} by ${month}`;
   if (before === null || after === null) return `${lead}.`;
-  if (after === before) return `${lead}: still ${formatSGD(after, 'down')} a day.`;
+  if (after === before) {
+    const reason = safetyCovers ? ', your safety saving already covers it' : '';
+    return `${lead}: still ${formatSGD(after, 'down')} a day${reason}.`;
+  }
   const direction = after < before ? 'down from' : 'up from';
   return `${lead}: ${formatSGD(after, 'down')} a day, ${direction} ${formatSGD(before, 'down')}.`;
 }
@@ -54,11 +66,12 @@ export function changeNotice(name: string, month: string, before: number | null,
 export async function runApp({ root, store, logger, budgetViews, code }: AppContext): Promise<void> {
   const today = () => toCalDate(new Date());
   let state = loadState(await store.getValue(APP_KEY), today());
-  const spends: Spend[] = await store.listSpends();
+  let spends: Spend[] = await store.listSpends();
   let view: View = { kind: 'today' };
   let notice: string | null = null;
   let showWelcome = false;
   let logNote = false;
+  let menuOpen = false;
 
   const model = (s: AppState) => buildToday({ state: s, spentCents: spentThisMonth(spends, today()), today: today() });
 
@@ -72,6 +85,7 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
     if (nextView.kind !== view.kind) {
       notice = nextView.kind === 'today' ? notice : null;
       logNote = false;
+      menuOpen = false;
     }
     view = nextView;
     render(isNewScreen);
@@ -98,7 +112,8 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
       void logger.log('target_decision', { decision: 'accepted' });
       if (state.route === 'none') void logger.logOnce('target_set_later');
       const month = itemMonth(draft);
-      notice = changeNotice(draft.name, month ? monthLabel(month) : '', before, model(next).dailyCents);
+      const after = model(next);
+      notice = changeNotice(draft.name, month ? monthLabel(month) : '', before, after.dailyCents, after.safetyCoversGoals);
     } else if (original && !sameItem(original, draft)) {
       void logger.log('target_decision', { decision: 'adjusted' });
       notice = null;
@@ -154,9 +169,24 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
           if (view.kind === 'edit') saveGoal(view.draft);
         },
         remove: () => {
-          void logger.log('target_decision', { decision: 'rejected' });
+          const original = state.items.find((item) => item.id === draft.id);
+          if (original && isPriced(original)) void logger.log('target_decision', { decision: 'rejected' });
           notice = null;
           go(removeItem(state, draft.id), { kind: 'today' });
+        },
+      });
+    }
+
+    if (view.kind === 'start-over') {
+      return startOverScreen({
+        cancel: () => go(state, { kind: 'today' }),
+        confirm: async () => {
+          await startOver(store);
+          spends = [];
+          notice = null;
+          showWelcome = false;
+          state = initialState;
+          go(initialState, { kind: 'today' });
         },
       });
     }
@@ -183,6 +213,7 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
         welcome: showWelcome ? { ratingUrl: ratingFormUrl(code), installed: window.matchMedia('(display-mode: standalone)').matches } : null,
         lastUpdated: last === null ? null : new Date(last).toLocaleString('en-SG', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }),
         logNote,
+        menuOpen,
       },
       {
         openGoal: (id) => {
@@ -199,6 +230,11 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
           render(false);
         },
         changeNumbers: () => go(state, { kind: 'numbers', before: state.numbers }),
+        toggleMenu: () => {
+          menuOpen = !menuOpen;
+          render(false);
+        },
+        startOver: () => go(state, { kind: 'start-over' }),
       },
     );
   }

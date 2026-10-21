@@ -52,18 +52,39 @@ describe('planItem', () => {
 });
 
 describe('planTarget', () => {
-  it('adds up each item to A and works out B = P − F − A', () => {
+  it('adds up each item and works out B = P − F − A', () => {
     const result = planTarget({
       ...base,
       items: [item(300_000, 12), item(1_200_000, 9, 2027, 0)],
     });
-    expect(result).toMatchObject({ kind: 'ok', monthlyAmountCents: 200_000, safeToSpendCents: 0 });
+    expect(result).toMatchObject({ kind: 'ok', monthlyAmountCents: 200_000, goalsMonthlyCents: 200_000, safeToSpendCents: 0 });
     if (result.kind === 'ok') expect(result.items.map((i) => i.monthlyAmountCents)).toEqual([100_000, 100_000]);
   });
 
   it('adds nothing for covered items', () => {
-    const result = planTarget({ ...base, items: [item(100_000, 12, 2026, 100_000), item(60_000, 12)] });
-    expect(result).toMatchObject({ kind: 'ok', monthlyAmountCents: 20_000, safeToSpendCents: 180_000 });
+    const result = planTarget({ ...base, payCents: 2_000_000, fixedCents: 1_900_000, items: [item(100_000, 12, 2026, 100_000), item(60_000, 12)] });
+    expect(result).toMatchObject({ kind: 'ok', goalsMonthlyCents: 20_000 });
+  });
+
+  it('sets aside the safety saving when it is more than the goals need', () => {
+    const result = planTarget({ ...base, items: [item(60_000, 12)] });
+    expect(result).toMatchObject({
+      kind: 'ok',
+      goalsMonthlyCents: 20_000,
+      safetySavingCents: 100_000,
+      monthlyAmountCents: 100_000,
+      safeToSpendCents: 100_000,
+    });
+  });
+
+  it('sets aside the goals total when it is more than the safety saving', () => {
+    const result = planTarget({ ...base, items: [item(450_000, 12)] });
+    expect(result).toMatchObject({ goalsMonthlyCents: 150_000, safetySavingCents: 100_000, monthlyAmountCents: 150_000, safeToSpendCents: 50_000 });
+  });
+
+  it('caps the safety saving at what is left after fixed costs, as on the floor route', () => {
+    const result = planTarget({ ...base, fixedCents: 450_000, items: [item(30_000, 12)] });
+    expect(result).toMatchObject({ goalsMonthlyCents: 10_000, safetySavingCents: 50_000, monthlyAmountCents: 50_000, safeToSpendCents: 0 });
   });
 
   it('says how much the goals need against what is left when B would be negative', () => {
@@ -80,7 +101,7 @@ describe('planTarget', () => {
 
   it('allows pay equal to fixed costs when every item is covered', () => {
     const result = planTarget({ ...base, fixedCents: 500_000, items: [item(100_000, 12, 2026, 100_000)] });
-    expect(result).toMatchObject({ kind: 'ok', monthlyAmountCents: 0, safeToSpendCents: 0 });
+    expect(result).toMatchObject({ kind: 'ok', monthlyAmountCents: 0, safetySavingCents: 0, safeToSpendCents: 0 });
   });
 
   it('rejects negative or fractional cents', () => {

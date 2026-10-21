@@ -12,6 +12,9 @@ export function createMemoryStore(): Store {
     async setValue(key, value) {
       values.set(key, structuredClone(value));
     },
+    async deleteValue(key) {
+      values.delete(key);
+    },
     async listSpends() {
       return sortSpends([...spends.values()].map((s) => ({ ...s })));
     },

@@ -10,6 +10,7 @@ export interface TodayView {
   welcome: { ratingUrl: string | null; installed: boolean } | null;
   lastUpdated: string | null;
   logNote: boolean;
+  menuOpen: boolean;
 }
 
 export interface TodayHandlers {
@@ -18,6 +19,8 @@ export interface TodayHandlers {
   logSpend(): void;
   dismissWelcome(): void;
   changeNumbers(): void;
+  toggleMenu(): void;
+  startOver(): void;
 }
 
 const CHECK_NUMBERS =
@@ -25,7 +28,24 @@ const CHECK_NUMBERS =
 
 export function todayScreen(model: TodayModel, view: TodayView, on: TodayHandlers): HTMLElement {
   return screen(
-    h('h1', { tabindex: -1 }, 'Today'),
+    h(
+      'div',
+      { class: 'screen-header' },
+      h('h1', { tabindex: -1 }, 'Today'),
+      h(
+        'button',
+        {
+          type: 'button',
+          class: 'button menu-button',
+          'aria-label': 'More options',
+          'aria-expanded': String(view.menuOpen),
+          'aria-controls': 'today-menu',
+          onClick: on.toggleMenu,
+        },
+        '⋯',
+      ),
+    ),
+    view.menuOpen && h('div', { class: 'card menu', id: 'today-menu' }, button('Start over', on.startOver)),
     view.notice && h('div', { class: 'card notice', role: 'status' }, h('p', {}, view.notice)),
     view.welcome && welcomeCard(view.welcome, on),
     dailyCard(model, view, on),
@@ -38,7 +58,9 @@ export function todayScreen(model: TodayModel, view: TodayView, on: TodayHandler
       ),
     model.status === 'check-numbers' && h('div', { class: 'card card-care' }, h('p', {}, CHECK_NUMBERS)),
     h('h2', { class: 'section-title' }, 'Your goals'),
-    h('div', { class: 'cards' }, ...model.goals.map((goal) => goalCard(goal, on))),
+    model.goals.length
+      ? h('div', { class: 'cards' }, ...model.goals.map((goal) => goalCard(goal, on)))
+      : h('p', { class: 'goal-meta' }, "No goals yet. Add one when you're ready."),
     h('div', { class: 'actions-inline' }, button('Add a goal', on.addGoal)),
     model.mode === 'floor' &&
       model.floorCents !== null &&
@@ -193,5 +215,22 @@ export function addGoalScreen(state: AppState, on: AddHandlers): HTMLElement {
       chip('Something else', undefined, false, () => on.pick(CUSTOM)),
     ),
     actions(button('Back', on.back)),
+  );
+}
+
+export interface StartOverHandlers {
+  cancel(): void;
+  confirm(): void;
+}
+
+export function startOverScreen(on: StartOverHandlers): HTMLElement {
+  return screen(
+    h('h1', { tabindex: -1 }, 'Start over?'),
+    h(
+      'p',
+      { class: 'lead' },
+      'This clears your goals, your pay and fixed costs, and any spends on this phone. Your personal link stays set up.',
+    ),
+    actions(button('Cancel', on.cancel), button('Start over', on.confirm, 'primary')),
   );
 }
