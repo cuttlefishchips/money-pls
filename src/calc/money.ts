@@ -28,3 +28,17 @@ export function formatDollarsInput(cents: number | null): string {
   const remainder = cents % 100;
   return remainder === 0 ? String(dollars) : `${dollars}.${String(remainder).padStart(2, '0')}`;
 }
+
+export type Rounding = 'exact' | 'up' | 'down';
+
+export function formatSGD(cents: number, rounding: Rounding = 'exact'): string {
+  const sign = cents < 0 ? '−' : '';
+  const abs = Math.abs(cents);
+  if (rounding === 'exact' && abs % 100 !== 0) {
+    const dollars = Math.floor(abs / 100).toLocaleString('en-SG');
+    return `${sign}S$${dollars}.${String(abs % 100).padStart(2, '0')}`;
+  }
+  const roundUp = (rounding === 'up') !== (cents < 0);
+  const dollars = roundUp ? Math.ceil(abs / 100) : Math.floor(abs / 100);
+  return `${sign}S$${dollars.toLocaleString('en-SG')}`;
+}

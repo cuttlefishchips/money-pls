@@ -2,9 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { dailyStatus, type DailyInputs } from './daily';
 
 const fullMonth: DailyInputs = {
-  route: 'target',
   safeToSpendCents: 300_000,
-  monthlyAmountCents: 100_000,
+  delayItemMonthlyCents: 100_000,
   spentCents: 0,
   setupDate: { year: 2026, month: 10, day: 1 },
   today: { year: 2026, month: 11, day: 1 },
@@ -101,21 +100,21 @@ describe('dailyStatus', () => {
   });
 
   describe('over budget', () => {
-    it('gives the target date delay in weeks, rounded up', () => {
+    it("gives the delay to the soonest unfinished item's date in weeks, rounded up, using that item's amount", () => {
       expect(dailyStatus({ ...fullMonth, spentCents: 400_000 })).toMatchObject({ pace: 'over', delayWeeks: 5 });
       expect(dailyStatus({ ...fullMonth, spentCents: 300_001 }).delayWeeks).toBe(1);
       expect(dailyStatus({ ...fullMonth, spentCents: 500_000 }).delayWeeks).toBe(9);
     });
 
-    it('gives no delay on the floor route', () => {
-      expect(dailyStatus({ ...fullMonth, route: 'floor', spentCents: 400_000 })).toMatchObject({
+    it('gives no delay on the floor route or when no item still needs money', () => {
+      expect(dailyStatus({ ...fullMonth, delayItemMonthlyCents: null, spentCents: 400_000 })).toMatchObject({
         pace: 'over',
         delayWeeks: null,
       });
     });
 
-    it('gives no delay when the monthly amount is zero', () => {
-      expect(dailyStatus({ ...fullMonth, monthlyAmountCents: 0, spentCents: 400_000 })).toMatchObject({
+    it('gives no delay when the item monthly amount is zero', () => {
+      expect(dailyStatus({ ...fullMonth, delayItemMonthlyCents: 0, spentCents: 400_000 })).toMatchObject({
         pace: 'over',
         delayWeeks: null,
       });
