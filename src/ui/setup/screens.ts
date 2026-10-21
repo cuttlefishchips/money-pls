@@ -1,148 +1,38 @@
-import type { YearMonth } from '../../calc/dates';
-import { formatDollarsInput } from '../../calc/money';
-import type { Route } from '../../events';
 import { actions, button, h, screen } from '../dom';
-import {
-  canContinue,
-  CUSTOM,
-  CUSTOM_NAME_MAX,
-  FUND_CHOICE,
-  isBefore,
-  isPicked,
-  ITEM_CHOICES,
-  ITEM_NAME_MAX,
-  TARGET_YEARS_AHEAD,
-  type ChoiceId,
-  type NumberField,
-  type PartialMonth,
-  type SetupItem,
-  type SetupState,
-} from './state';
+import { chip, moneyField, textField } from '../fields';
+import { canStart, CUSTOM, isPicked, ITEM_CHOICES, ITEM_NAME_MAX, numbersDone, type AppState, type ChoiceId, type NumberField } from '../state';
 
-export interface SetupHandlers {
-  chooseRoute(route: Route): void;
+export interface StartHandlers {
   toggleItem(choice: ChoiceId): void;
+  chooseNotSure(): void;
   setCustomName(name: string): void;
-  setItemName(index: number, name: string): void;
-  setItemCost(index: number, text: string): void;
-  setItemSaved(index: number, text: string): void;
-  setUseFixedCostMonths(index: number, use: boolean): void;
-  setItemTarget(index: number, target: PartialMonth): void;
-  removeItem(index: number): void;
-  setNumber(field: NumberField, text: string): void;
   next(): void;
-  back(): void;
 }
 
-const ROUTE_OPTIONS: { route: Route; title: string; description: string }[] = [
-  { route: 'items', title: "I've got things in mind", description: "Pick what you're saving up for and put a rough price on each." },
-  { route: 'none', title: 'Not sure yet', description: 'Start with a safety floor and a simple split. You can set a target later.' },
-];
-
-export function routeScreen(state: SetupState, on: SetupHandlers, now: YearMonth): HTMLElement {
-  return screen(
-    h('h1', { id: 'route-question', tabindex: -1 }, 'What would make the next few years feel good?'),
-    h('p', { class: 'lead' }, 'Pick the one that fits best. You can come back and change it.'),
-    h(
-      'div',
-      { class: 'choices', role: 'radiogroup', 'aria-labelledby': 'route-question' },
-      ...ROUTE_OPTIONS.map((option) =>
-        h(
-          'label',
-          { class: 'choice' },
-          h('input', {
-            type: 'radio',
-            name: 'route',
-            checked: state.route === option.route,
-            onChange: () => on.chooseRoute(option.route),
-          }),
-          h('span', { class: 'choice-title' }, option.title),
-          h('span', { class: 'choice-description' }, option.description),
-        ),
-      ),
-    ),
-    actions(button('Continue', on.next, 'primary', !canContinue(state, now))),
-  );
-}
-
-export function itemsScreen(state: SetupState, on: SetupHandlers, now: YearMonth): HTMLElement {
-  const customPicked = isPicked(state, CUSTOM);
+export function startScreen(state: AppState, on: StartHandlers): HTMLElement {
   const customName = state.items.find((item) => item.choice === CUSTOM)?.name ?? '';
-
   return screen(
     h('h1', { id: 'items-question', tabindex: -1 }, 'What are you saving up for?'),
-    h('p', { class: 'lead' }, "Pick all that apply. You'll put a rough price on each next."),
+    h('p', { class: 'lead' }, "Pick all that apply. You can add prices later, and it's fine not to know yet."),
     h(
       'div',
       { class: 'chips', role: 'group', 'aria-labelledby': 'items-question' },
       ...ITEM_CHOICES.map((c) => chip(c.name, 'hint' in c ? c.hint : undefined, isPicked(state, c.id), () => on.toggleItem(c.id))),
-      chip('Something else', undefined, customPicked, () => on.toggleItem(CUSTOM)),
+      chip('Something else', undefined, isPicked(state, CUSTOM), () => on.toggleItem(CUSTOM)),
     ),
-    customPicked &&
-      h(
-        'label',
-        { class: 'field' },
-        h('span', { class: 'field-label' }, 'What is it?'),
-        h('input', {
-          type: 'text',
-          class: 'text-input',
-          value: customName,
-          maxlength: CUSTOM_NAME_MAX,
-          autocomplete: 'off',
-          onInput: (e: Event) => on.setCustomName((e.target as HTMLInputElement).value),
-        }),
-      ),
-    actions(button('Back', on.back), button('Continue', on.next, 'primary', !canContinue(state, now))),
+    isPicked(state, CUSTOM) && textField('What is it?', customName, ITEM_NAME_MAX, on.setCustomName),
+    h('div', { class: 'chips chips-apart' }, chip('Not sure yet', undefined, state.route === 'none', on.chooseNotSure)),
+    actions(button('Continue', on.next, 'primary', !canStart(state))),
   );
 }
 
-export function pricesScreen(state: SetupState, on: SetupHandlers, now: YearMonth): HTMLElement {
-  return screen(
-    h('h1', { tabindex: -1 }, 'Put a rough price on each'),
-    h('p', { class: 'lead' }, 'Think of the last time you paid for something similar. Roughly is fine.'),
-    h('div', { class: 'cards' }, ...state.items.map((item, i) => itemCard(item, i, state.items.length > 1, on, now))),
-    actions(button('Back', on.back), button('Continue', on.next, 'primary', !canContinue(state, now))),
-  );
+export interface NumbersHandlers {
+  setNumber(field: NumberField, text: string): void;
+  back(): void;
+  next(): void;
 }
 
-function itemCard(item: SetupItem, i: number, removable: boolean, on: SetupHandlers, now: YearMonth): HTMLElement {
-  const isFund = item.choice === FUND_CHOICE;
-  return h(
-    'fieldset',
-    { class: 'card' },
-    h('legend', { class: 'visually-hidden' }, item.name || 'Item'),
-    h(
-      'label',
-      { class: 'field' },
-      h('span', { class: 'field-label' }, 'Name'),
-      h('input', {
-        type: 'text',
-        class: 'text-input',
-        value: item.name,
-        maxlength: ITEM_NAME_MAX,
-        autocomplete: 'off',
-        onInput: (e: Event) => on.setItemName(i, (e.target as HTMLInputElement).value),
-      }),
-    ),
-    isFund &&
-      h(
-        'label',
-        { class: 'check' },
-        h('input', {
-          type: 'checkbox',
-          checked: item.useFixedCostMonths,
-          onChange: (e: Event) => on.setUseFixedCostMonths(i, (e.target as HTMLInputElement).checked),
-        }),
-        h('span', {}, 'Not sure, use 3 months of my fixed costs'),
-      ),
-    !item.useFixedCostMonths && moneyField('Rough price', undefined, item.costCents, (text) => on.setItemCost(i, text)),
-    monthPicker('By when', item.target, now, (target) => on.setItemTarget(i, target)),
-    moneyField('Saved so far', 'Optional. Leave blank if none.', item.savedCents, (text) => on.setItemSaved(i, text)),
-    removable && h('div', { class: 'card-actions' }, button('Remove', () => on.removeItem(i))),
-  );
-}
-
-export function numbersScreen(state: SetupState, on: SetupHandlers, now: YearMonth): HTMLElement {
+export function numbersScreen(state: AppState, on: NumbersHandlers, labels = { back: 'Back', next: 'Continue' }): HTMLElement {
   const { payCents, fixedCents } = state.numbers;
   return screen(
     h('h1', { tabindex: -1 }, 'Your starting numbers'),
@@ -158,102 +48,6 @@ export function numbersScreen(state: SetupState, on: SetupHandlers, now: YearMon
         (text) => on.setNumber('fixedCents', text),
       ),
     ),
-    actions(button('Back', on.back), button('Continue', on.next, 'primary', !canContinue(state, now))),
-  );
-}
-
-export const MONTH_NAMES = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-
-let fieldId = 0;
-
-function monthPicker(label: string, target: PartialMonth, now: YearMonth, onChange: (target: PartialMonth) => void) {
-  const { year, month } = target;
-  const id = `field-${++fieldId}`;
-  const years = Array.from({ length: TARGET_YEARS_AHEAD + 1 }, (_, i) => now.year + i);
-  return h(
-    'div',
-    { class: 'field', role: 'group', 'aria-labelledby': id },
-    h('span', { class: 'field-label', id }, label),
-    h(
-      'div',
-      { class: 'field-row' },
-      select(
-        'Month',
-        month,
-        MONTH_NAMES.map((name, i) => ({ value: i + 1, label: name, disabled: year !== null && isBefore({ year, month: i + 1 }, now) })),
-        (value) => onChange({ year, month: value }),
-      ),
-      select(
-        'Year',
-        year,
-        years.map((y) => ({ value: y, label: String(y) })),
-        (value) => onChange({ year: value, month }),
-      ),
-    ),
-  );
-}
-
-function moneyField(label: string, help: string | undefined, cents: number | null, onInput: (text: string) => void) {
-  const id = `field-${++fieldId}`;
-  return h(
-    'div',
-    { class: 'field' },
-    h('label', { class: 'field-label', for: id }, label),
-    help && h('p', { class: 'field-help', id: `${id}-help` }, help),
-    h(
-      'div',
-      { class: 'money-input' },
-      h('span', { class: 'money-prefix', 'aria-hidden': 'true' }, 'S$'),
-      h('input', {
-        id,
-        type: 'text',
-        class: 'text-input',
-        inputmode: 'decimal',
-        autocomplete: 'off',
-        value: formatDollarsInput(cents),
-        'aria-describedby': help ? `${id}-help` : undefined,
-        onInput: (e: Event) => onInput((e.target as HTMLInputElement).value),
-      }),
-    ),
-  );
-}
-
-function select(
-  label: string,
-  value: number | null,
-  options: { value: number; label: string; disabled?: boolean }[],
-  onChange: (value: number) => void,
-) {
-  return h(
-    'select',
-    {
-      class: 'text-input',
-      'aria-label': label,
-      onChange: (e: Event) => onChange(Number((e.target as HTMLSelectElement).value)),
-    },
-    h('option', { value: '', disabled: true, selected: value === null }, label),
-    ...options.map((o) => h('option', { value: o.value, selected: o.value === value, disabled: o.disabled }, o.label)),
-  );
-}
-
-function chip(name: string, hint: string | undefined, pressed: boolean, onClick: () => void): HTMLElement {
-  return h(
-    'button',
-    { type: 'button', class: 'chip', 'aria-pressed': String(pressed), onClick },
-    h('span', { class: 'chip-name' }, name),
-    hint && h('span', { class: 'chip-hint' }, hint),
+    actions(button(labels.back, on.back), button(labels.next, on.next, 'primary', !numbersDone(state))),
   );
 }

@@ -5,7 +5,7 @@ import { createUsageLogger, trackBudgetViews, trackSessions } from './events';
 import { resolveParticipant, switchParticipant, type Participant } from './participant/code';
 import { openStore, requestPersistentStorage, type Store } from './storage';
 import { renderGate } from './ui/gate';
-import { runSetup } from './ui/setup';
+import { runApp } from './ui/app';
 
 async function start(root: HTMLElement): Promise<void> {
   const store = await openStore();
@@ -24,7 +24,7 @@ function show(root: HTMLElement, store: Store, participant: Participant): void {
   void requestPersistentStorage();
   const logger = createUsageLogger(store, participant.code);
   trackSessions(logger, document, window);
-  void runSetup({ root, store, logger, budgetViews: trackBudgetViews(logger, document), code: participant.code });
+  void runApp({ root, store, logger, budgetViews: trackBudgetViews(logger, document), code: participant.code });
 }
 
 const root = document.querySelector<HTMLElement>('#app');

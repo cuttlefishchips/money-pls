@@ -70,18 +70,24 @@ Priority: Must = needed for the test to work. Should = add if time allows. Build
 ### Not in scope
 Accounts, logins, bank connections, account lists, categories, several goals, preset cost ranges, "what if I buy this", spends priced in life terms, reminders or notifications, refinement prompts, guided catch-up, any analytics sent automatically.
 
-## 4. Set-up flow (stories 1 to 5 and 16)
+## 4. Set-up flow and Today (stories 1 to 6, 13 and 16)
 
-1. **Choose a route.** "What would make the next few years feel good?" Options: "I've got things in mind" and "Not sure yet".
-2. **Pick items** ("I've got things in mind" only). Question: "What are you saving up for?" Hint: "Pick all that apply. You'll put a rough price on each next." Multi-select chips, all one-off: Travel, First home (BTO, renovation, moving out), Emergency fund, Wedding, Further studies, Career break, Big purchase (car, gadgets), and Something else, where the person types their own name.
-3. **Price each one.** Each picked item gets a card with its name (pre-filled and editable), a rough price, "By when" (month and year, from this month up to 10 years ahead) and "Saved so far" (optional, blank counts as 0). The Emergency fund card also offers "Not sure, use 3 months of my fixed costs" in place of a price. Prompt: think of the last time you paid for something similar. No example price ranges.
-4. Removed on 2026-10-21. Each item now has its own date on step 3.
-5. **Starting numbers.** Take-home pay per month and fixed costs per month including everyday essentials (show what counts: rent or mortgage, bills, insurance, groceries, transport, supporting family, other essentials), on both routes. "Roughly is fine."
-6. **See the result.** The daily number, the total set aside each month and what is left to spend, then each item with its price, date, saved so far and monthly amount, or "Already covered". The floor and split for "Not sure yet". Every item, date and number can be changed. Then Accept, then the home-screen guide and a link to the rating form (URL configurable, pre-filled with the participant code).
+Set-up is two screens, then Today. Goals are priced on Today, one at a time, whenever the person is ready.
 
-"Not sure yet" goes 1 → 5 → 6. "I've got things in mind" goes 1 → 2 → 3 → 5 → 6.
+1. **What are you saving up for?** Hint: "Pick all that apply. You can add prices later, and it's fine not to know yet." Multi-select chips, all one-off: Travel, First home (BTO, renovation, moving out), Emergency fund, Wedding, Further studies, Career break, Big purchase (car, gadgets), and Something else, where the person types their own name. A separate "Not sure yet" choice clears the items. Logs `start_route`.
+2. **Starting numbers.** Take-home pay per month and fixed costs per month including everyday essentials (show what counts: rent or mortgage, bills, insurance, groceries, transport, supporting family, other essentials). "Roughly is fine."
 
-Set-up progress is saved on the device, so leaving part-way resumes where the person stopped.
+Then **Today**, where the app always opens after set-up:
+- The daily number as the headline, with what it is tied to: "keeps you on track for [soonest unfinished goal]" on the target route, or "while you build your safety floor" on the floor route.
+- Set aside and left to spend each month, the pace line, a Log a spend button, and when the number was last updated.
+- The "needs more" card when the priced goals need more than `P − F`, or the "check your numbers" card.
+- Each picked item as a goal card. An unpriced card says "Add a price and date". Opening a card edits its name, rough price ("Not sure, use 3 months of my fixed costs" on the Emergency fund), "By when" (month and year, this month up to 10 years ahead) and "Saved so far" (optional). Prompt: think of the last time you paid for something similar. No example price ranges. A goal can be removed from its card, and new goals added from Today.
+- Until at least one item is priced, Today uses the floor route. Once one is, it uses the target route over the priced items only. Removing every priced item returns to the floor route.
+- When an item is first priced, Today shows "Adding [item] by [month]: S$[new] a day, down from S$[old]" (or "up from", or "still", as the numbers fall).
+- On the first visit, a one-time card shows the home-screen guide and a link to the rating form (URL configurable, pre-filled with the participant code).
+- Pay and fixed costs can be changed from Today.
+
+Set-up progress and Today are saved on the device, so leaving part-way resumes where the person stopped.
 
 ## 5. Calculation rules
 
@@ -139,9 +145,9 @@ Store in a separate usage log. Every event has `{ v: 1, code, type, ts }` plus o
 | `session` | `duration_s` | when a session ends (page hidden or closed) |
 | `spend_logged` | none | each optional spend saved |
 | `budget_viewed` | none | once per screen visit that shows the daily number or target date, and again when the app returns to the foreground on that screen |
-| `start_route` | `route`: `items`, `none` | once, at set-up step 1 |
-| `target_decision` | `decision`: `accepted`, `adjusted`, `rejected` | at set-up step 6, and when a target is later changed |
-| `target_set_later` | none | a floor-route person later sets a target |
+| `start_route` | `route`: `items`, `none` | once, at set-up screen 1 |
+| `target_decision` | `decision`: `accepted`, `adjusted`, `rejected` | `accepted` when an item is first priced, `adjusted` when a priced item is edited, `rejected` when an item is removed |
+| `target_set_later` | none | once, when a person who chose "Not sure yet" first prices an item |
 
 Enforce the allowed list in code. The export screen shows the log in plain words, then saves it as a JSON file named `usage-<code>-<date>.json`.
 
@@ -160,7 +166,7 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 
 ## 8. What the test must answer (for context)
 
-1. Does a target from the life people want, or the floor and split, feel useful in the first session?
+1. Does a person price at least one item in the first session?
 2. Do people come back each week without being chased? (Check-ins stop after week 2.)
 3. Does the budget shape real spending?
 4. Do people feel more confident? (A clue only.)
@@ -200,3 +206,4 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 - 2026-10-21: Each item has its own price, date and saved so far, and the shared date step is removed. `A = Σ A_i`. Overspend moves the soonest unfinished item's date using its `A_i`. When the goals need more than `P − F`, the person moves dates or removes items, with no automatic earliest date.
 - 2026-10-21: The result screen's secondary "Try a safety floor instead" logs `target_decision` as `rejected` and switches to the floor route. Accepting logs `accepted`, or `adjusted` if anything was changed after the result was first shown. The floor route logs no `target_decision`.
 - 2026-10-21: Shown amounts are whole dollars: amounts to set aside round up, and amounts to spend round down. Typed amounts show their cents.
+- 2026-10-21: Onboarding is progressive. Set-up is "What are you saving up for?" (or "Not sure yet") and starting numbers, then Today. Goals are priced from their cards on Today. Today uses the floor route until one item is priced, then the target route over priced items. The "Try a safety floor instead" option and the separate result and done screens are removed. `target_decision` follows pricing, editing and removing items.

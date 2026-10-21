@@ -401,3 +401,62 @@ select.text-input {
 .button {
   white-space: nowrap;
 }
+
+.chips-apart {
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.actions-inline {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.actions-inline .button {
+  flex: 1;
+}
+
+.goal-button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-height: 44px;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.goal-button:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.goal-add {
+  color: var(--ink);
+  font-weight: 500;
+  text-decoration: underline;
+}
+
+.pace {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-pill);
+  font-weight: 500;
+}
+
+.pace-ahead {
+  background: var(--ahead);
+  color: var(--ahead-ink);
+}
+
+.pace-care {
+  background: var(--care);
+  color: var(--care-ink);
+}
+
+.notice {
+  border-color: var(--ink);
+}
