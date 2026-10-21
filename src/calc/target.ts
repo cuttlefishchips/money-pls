@@ -1,4 +1,5 @@
 import { endOfMonth, monthsToTarget, type CalDate, type YearMonth } from './dates';
+import { planFloor } from './floor';
 import { assertCents, ceilDiv } from './money';
 
 export const FIXED_COST_MONTHS_FOR_FUND = 3;
@@ -28,7 +29,14 @@ export interface ItemPlan {
 }
 
 export type TargetResult =
-  | { kind: 'ok'; items: ItemPlan[]; monthlyAmountCents: number; safeToSpendCents: number }
+  | {
+      kind: 'ok';
+      items: ItemPlan[];
+      monthlyAmountCents: number;
+      goalsMonthlyCents: number;
+      safetySavingCents: number;
+      safeToSpendCents: number;
+    }
   | { kind: 'needs-more'; items: ItemPlan[]; monthlyAmountCents: number; availableCents: number }
   | { kind: 'check-numbers' };
 
@@ -61,15 +69,25 @@ export function planTarget(inputs: TargetInputs): TargetResult {
   assertCents('fixedCents', F);
 
   const items = inputs.items.map((item) => planItem(item, F, inputs.startMonth));
-  const A = items.reduce((total, item) => total + item.monthlyAmountCents, 0);
+  const goals = items.reduce((total, item) => total + item.monthlyAmountCents, 0);
   const available = P - F;
-  const B = available - A;
 
-  if (B < 0) {
+  if (goals > available) {
     if (available <= 0) return { kind: 'check-numbers' };
-    return { kind: 'needs-more', items, monthlyAmountCents: A, availableCents: available };
+    return { kind: 'needs-more', items, monthlyAmountCents: goals, availableCents: available };
   }
-  return { kind: 'ok', items, monthlyAmountCents: A, safeToSpendCents: B };
+
+  const floor = planFloor({ payCents: P, fixedCents: F });
+  const safety = floor.kind === 'ok' ? floor.savingCents : 0;
+  const A = Math.max(goals, safety);
+  return {
+    kind: 'ok',
+    items,
+    monthlyAmountCents: A,
+    goalsMonthlyCents: goals,
+    safetySavingCents: safety,
+    safeToSpendCents: available - A,
+  };
 }
 
 export function soonestUnfinished(items: ItemPlan[], thisMonth: YearMonth): ItemPlan | null {

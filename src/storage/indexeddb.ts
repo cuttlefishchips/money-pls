@@ -35,6 +35,9 @@ export async function openIndexedDbStore(name = 'money-pls', factory: IDBFactory
     setValue: async (key, value) => {
       await run(VALUES, 'readwrite', (s) => s.put(value, key));
     },
+    deleteValue: async (key) => {
+      await run(VALUES, 'readwrite', (s) => s.delete(key));
+    },
     listSpends: async () => sortSpends(await run(SPENDS, 'readonly', (s) => s.getAll() as IDBRequest<Spend[]>)),
     putSpend: async (spend) => {
       await run(SPENDS, 'readwrite', (s) => s.put(spend));

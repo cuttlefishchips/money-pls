@@ -75,7 +75,7 @@ Accounts, logins, bank connections, account lists, categories, several goals, pr
 Set-up is two screens, then Today. Goals are priced on Today, one at a time, whenever the person is ready.
 
 1. **What are you saving up for?** Hint: "Pick all that apply. You can add prices later, and it's fine not to know yet." Multi-select chips, all one-off: Travel, First home (BTO, renovation, moving out), Emergency fund, Wedding, Further studies, Career break, Big purchase (car, gadgets), and Something else, where the person types their own name. A separate "Not sure yet" choice clears the items. Logs `start_route`.
-2. **Starting numbers.** Take-home pay per month and fixed costs per month including everyday essentials (show what counts: rent or mortgage, bills, insurance, groceries, transport, supporting family, other essentials). "Roughly is fine."
+2. **Starting numbers.** Take-home pay per month and fixed costs per month including everyday essentials (show what counts: rent or mortgage, bills, insurance, groceries, transport, supporting family, other essentials). "Roughly is fine." A Back button returns to screen 1 with the picks kept.
 
 Then **Today**, where the app always opens after set-up:
 - The daily number as the headline, with what it is tied to: "keeps you on track for [soonest unfinished goal]" on the target route, or "while you build your safety floor" on the floor route.
@@ -83,9 +83,10 @@ Then **Today**, where the app always opens after set-up:
 - The "needs more" card when the priced goals need more than `P − F`, or the "check your numbers" card.
 - Each picked item as a goal card. An unpriced card says "Add a price and date". Opening a card edits its name, rough price ("Not sure, use 3 months of my fixed costs" on the Emergency fund), "By when" (month and year, this month up to 10 years ahead) and "Saved so far" (optional). Prompt: think of the last time you paid for something similar. No example price ranges. A goal can be removed from its card, and new goals added from Today.
 - Until at least one item is priced, Today uses the floor route. Once one is, it uses the target route over the priced items only. Removing every priced item returns to the floor route.
-- When an item is first priced, Today shows "Adding [item] by [month]: S$[new] a day, down from S$[old]" (or "up from", or "still", as the numbers fall).
+- When an item is first priced, Today shows "Adding [item] by [month]: S$[new] a day, down from S$[old]". When the daily number does not change because the safety saving already covers the goal, it shows "Adding [item] by [month]: still S$[n] a day, your safety saving already covers it".
 - On the first visit, a one-time card shows the home-screen guide and a link to the rating form (URL configurable, pre-filled with the participant code).
 - Pay and fixed costs can be changed from Today.
+- A small menu on Today offers "Start over", with a confirmation. It clears the goals, numbers and spends on the phone, and keeps the participant code and the usage log.
 
 Set-up progress and Today are saved on the device, so leaving part-way resumes where the person stopped.
 
@@ -105,7 +106,9 @@ Put all of this in a pure module (`src/calc/`) with unit tests. Screens call it 
 - `n_i` = whole months from the start month to `T_i`, counting the start month and the month of `T_i`, minimum 1. Example: start in October, `T_i` in December, `n_i = 3`.
 - `A_i` = `max(0, price_i − S_i) / n_i`, rounded up to the cent
 - An item with `S_i ≥ price_i` is already covered and has `A_i = 0`
-- `A` (monthly amount) = `Σ A_i`
+- `A_goals` = `Σ A_i`
+- Safety saving = `min(0.2 × P, P − F)`, the same as the floor route's saving
+- `A` (monthly amount) = `max(A_goals, safety saving)`, so pricing a goal never raises the daily number above the floor route's
 - `B` (monthly safe-to-spend) = `P − F − A`
 
 ### Floor route ("Not sure yet")
@@ -131,7 +134,7 @@ Put all of this in a pure module (`src/calc/`) with unit tests. Screens call it 
 - The target date delay is rounded up to the next whole week.
 
 ### Edge cases
-- `B < 0` at set-up: if `P − F > 0`, show "Your goals need S$[A] a month and you have S$[P − F]", and let the person move dates or remove items. Otherwise ask them to check their numbers.
+- `A_goals > P − F`: if `P − F > 0`, show "Your goals need S$[A_goals] a month and you have S$[P − F]", and let the person move dates or remove items. Otherwise ask them to check their numbers.
 - `S_i ≥ price_i`: show that item as already covered, adding 0 to `A`.
 - `daily ≤ 0`: show that this month's spending is used up, kindly, with the target date effect if any.
 - No entries for some days: show "not logged" for those days, and the time the number was last updated.
@@ -146,7 +149,7 @@ Store in a separate usage log. Every event has `{ v: 1, code, type, ts }` plus o
 | `spend_logged` | none | each optional spend saved |
 | `budget_viewed` | none | once per screen visit that shows the daily number or target date, and again when the app returns to the foreground on that screen |
 | `start_route` | `route`: `items`, `none` | once, at set-up screen 1 |
-| `target_decision` | `decision`: `accepted`, `adjusted`, `rejected` | `accepted` when an item is first priced, `adjusted` when a priced item is edited, `rejected` when an item is removed |
+| `target_decision` | `decision`: `accepted`, `adjusted`, `rejected` | `accepted` when an item is first priced, `adjusted` when a priced item is edited, `rejected` when a priced item is removed. Removing an unpriced item logs nothing |
 | `target_set_later` | none | once, when a person who chose "Not sure yet" first prices an item |
 
 Enforce the allowed list in code. The export screen shows the log in plain words, then saves it as a JSON file named `usage-<code>-<date>.json`.
@@ -207,3 +210,4 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 - 2026-10-21: The result screen's secondary "Try a safety floor instead" logs `target_decision` as `rejected` and switches to the floor route. Accepting logs `accepted`, or `adjusted` if anything was changed after the result was first shown. The floor route logs no `target_decision`.
 - 2026-10-21: Shown amounts are whole dollars: amounts to set aside round up, and amounts to spend round down. Typed amounts show their cents.
 - 2026-10-21: Onboarding is progressive. Set-up is "What are you saving up for?" (or "Not sure yet") and starting numbers, then Today. Goals are priced from their cards on Today. Today uses the floor route until one item is priced, then the target route over priced items. The "Try a safety floor instead" option and the separate result and done screens are removed. `target_decision` follows pricing, editing and removing items.
+- 2026-10-21: On the target route, the amount set aside is the larger of the goals' total and the floor route's safety saving, so pricing a goal never raises the daily number. `rejected` is logged only when a priced item is removed. Set-up screen 2 has a Back button, and Today has a "Start over" menu option that keeps the participant code and usage log.

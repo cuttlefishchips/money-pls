@@ -31,6 +31,16 @@ describe.each(implementations)('%s store', (_name, open) => {
     expect(await store.getValue('setup')).toEqual({ step: 3 });
   });
 
+  it('deletes a value by key, leaving others', async () => {
+    const store = await open();
+    await store.setValue('setup', { step: 1 });
+    await store.setValue('participantCode', 'P3');
+    await store.deleteValue('setup');
+    await store.deleteValue('missing');
+    expect(await store.getValue('setup')).toBeUndefined();
+    expect(await store.getValue('participantCode')).toBe('P3');
+  });
+
   it('returns copies, so changing a result does not change what is stored', async () => {
     const store = await open();
     await store.setValue('setup', { step: 1 });
