@@ -483,3 +483,40 @@ select.text-input {
 .screen > .actions-inline {
   margin-bottom: 12px;
 }
+
+.spend-list {
+  display: grid;
+  overflow: hidden;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  margin-bottom: 12px;
+}
+
+.spend-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 0 16px;
+  background: none;
+  color: var(--ink);
+  border: 0;
+  border-top: 1px solid var(--line);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.spend-row:first-child {
+  border-top: 0;
+}
+
+.spend-row:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: -3px;
+}
+
+.spend-amount {
+  font-weight: 500;
+}
