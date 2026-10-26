@@ -52,3 +52,10 @@
 - `rejected` is logged only when a priced goal is removed. An unpriced goal was never part of a target, so removing it is not a target decision.
 - Set-up screen 2 has a Back button, so people can change their picks before seeing Today.
 - Today has a small menu with "Start over", behind a confirmation. It clears goals, numbers and spends, and keeps the participant code and usage log, so a fresh start does not break the study data.
+
+## 2026-10-26
+- Logging a spend asks for an amount and a date only, with the date set to today, so it takes a few seconds. There is no note field, because notes add effort and are not needed to keep the number right.
+- Spends can be dated up to 31 days back, so people who forget a day can catch up, but never in the future.
+- This month's spends are listed on Today and open for editing or deleting, so a mistake never distorts the number.
+- `spend_logged` fires only for new spends, matching "each optional spend saved". Edits and deletes are corrections, not new logging, so they are not counted.
+- "Last updated" shows when the spends last changed, including edits and deletes, because that is when the number last moved.

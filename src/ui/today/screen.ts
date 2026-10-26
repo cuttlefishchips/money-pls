@@ -3,13 +3,14 @@ import { formatSGD } from '../../calc/money';
 import { actions, button, h, screen } from '../dom';
 import { chip, monthLabel, monthPicker, moneyField, textField } from '../fields';
 import { CUSTOM, FUND_CHOICE, isPicked, ITEM_CHOICES, ITEM_NAME_MAX, type AppState, type ChoiceId, type GoalItem, type PartialMonth } from '../state';
+import type { Spend } from '../../storage';
 import type { GoalView, TodayModel } from './model';
 
 export interface TodayView {
   notice: string | null;
   welcome: { ratingUrl: string | null; installed: boolean } | null;
   lastUpdated: string | null;
-  logNote: boolean;
+  spends: Spend[];
   menuOpen: boolean;
 }
 
@@ -17,6 +18,7 @@ export interface TodayHandlers {
   openGoal(id: string): void;
   addGoal(): void;
   logSpend(): void;
+  openSpend(id: string): void;
   dismissWelcome(): void;
   changeNumbers(): void;
   toggleMenu(): void;
@@ -57,6 +59,10 @@ export function todayScreen(model: TodayModel, view: TodayView, on: TodayHandler
         h('p', {}, 'You can move a date later or remove a goal.'),
       ),
     model.status === 'check-numbers' && h('div', { class: 'card card-care' }, h('p', {}, CHECK_NUMBERS)),
+    h('h2', { class: 'section-title' }, "This month's spends"),
+    view.spends.length
+      ? h('div', { class: 'spend-list' }, ...view.spends.map((spend) => spendRow(spend, on)))
+      : h('p', { class: 'goal-meta' }, 'Nothing logged this month yet.'),
     h('h2', { class: 'section-title' }, 'Your goals'),
     model.goals.length
       ? h('div', { class: 'cards' }, ...model.goals.map((goal) => goalCard(goal, on)))
@@ -99,8 +105,18 @@ function dailyCard(model: TodayModel, view: TodayView, on: TodayHandlers): HTMLE
       ),
     ok && paceLine(model),
     h('div', { class: 'actions-inline' }, button('Log a spend', on.logSpend, 'primary')),
-    view.logNote && h('p', { class: 'goal-meta', role: 'status' }, 'Logging spends comes in the next update.'),
     h('p', { class: 'goal-meta' }, view.lastUpdated ? `Last updated ${view.lastUpdated}` : 'No spends logged yet'),
+  );
+}
+
+function spendRow(spend: Spend, on: TodayHandlers): HTMLElement {
+  const [year, month, day] = spend.date.split('-').map(Number);
+  const label = new Date(year!, month! - 1, day!).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' });
+  return h(
+    'button',
+    { type: 'button', class: 'spend-row', onClick: () => on.openSpend(spend.id), 'aria-label': `Edit ${formatSGD(spend.amountCents)} on ${label}` },
+    h('span', {}, label),
+    h('span', { class: 'spend-amount' }, formatSGD(spend.amountCents)),
   );
 }
 

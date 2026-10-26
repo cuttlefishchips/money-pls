@@ -85,6 +85,9 @@ Then **Today**, where the app always opens after set-up:
 - Until at least one item is priced, Today uses the floor route. Once one is, it uses the target route over the priced items only. Removing every priced item returns to the floor route.
 - When an item is first priced, Today shows "Adding [item] by [month]: S$[new] a day, down from S$[old]". When the daily number does not change because the safety saving already covers the goal, it shows "Adding [item] by [month]: still S$[n] a day, your safety saving already covers it".
 - On the first visit, a one-time card shows the home-screen guide and a link to the rating form (URL configurable, pre-filled with the participant code).
+- **Log a spend** opens a screen with the amount and the date (today by default, any day in the last 31 days, never in the future), under one line: "Only log spending. Transfers and card bill payments don't count." Saving updates the daily number, pace and last updated straight away. Each new spend fires `spend_logged`.
+- "This month's spends" lists this month's spends on Today, newest first. Tapping one edits its amount or date, or deletes it. Edits and deletes update the number but fire no event.
+- "Last updated" is the time of the last spend added, edited or deleted.
 - Pay and fixed costs can be changed from Today.
 - A small menu on Today offers "Start over", with a confirmation. It clears the goals, numbers and spends on the phone, and keeps the participant code and the usage log.
 
@@ -211,3 +214,4 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 - 2026-10-21: Shown amounts are whole dollars: amounts to set aside round up, and amounts to spend round down. Typed amounts show their cents.
 - 2026-10-21: Onboarding is progressive. Set-up is "What are you saving up for?" (or "Not sure yet") and starting numbers, then Today. Goals are priced from their cards on Today. Today uses the floor route until one item is priced, then the target route over priced items. The "Try a safety floor instead" option and the separate result and done screens are removed. `target_decision` follows pricing, editing and removing items.
 - 2026-10-21: On the target route, the amount set aside is the larger of the goals' total and the floor route's safety saving, so pricing a goal never raises the daily number. `rejected` is logged only when a priced item is removed. Set-up screen 2 has a Back button, and Today has a "Start over" menu option that keeps the participant code and usage log.
+- 2026-10-26: Spends are logged, edited and deleted from Today. A spend has an amount and a date from the last 31 days, with no note. `spend_logged` fires only for new spends. "Last updated" is the time of the last add, edit or delete, and Start over clears it.

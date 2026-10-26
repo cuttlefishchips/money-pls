@@ -30,6 +30,8 @@ import {
 import { buildToday, spentThisMonth } from './today/model';
 import { addGoalScreen, editGoalScreen, startOverScreen, todayScreen } from './today/screen';
 import { startOver } from './start-over';
+import { canSaveSpend, draftFromSpend, earliestSpendDate, isoDate, newSpendDraft, spendFromDraft, SPENDS_CHANGED_KEY, spendsThisMonth, type SpendDraft } from './spends';
+import { spendScreen } from './today/spend-screen';
 
 export interface AppContext {
   root: HTMLElement;
@@ -44,7 +46,8 @@ type View =
   | { kind: 'edit'; draft: GoalItem }
   | { kind: 'add' }
   | { kind: 'numbers'; before: StartingNumbers }
-  | { kind: 'start-over' };
+  | { kind: 'start-over' }
+  | { kind: 'spend'; draft: SpendDraft };
 
 export function changeNotice(
   name: string,
@@ -67,10 +70,12 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
   const today = () => toCalDate(new Date());
   let state = loadState(await store.getValue(APP_KEY), today());
   let spends: Spend[] = await store.listSpends();
+  let spendsChangedAt =
+    (await store.getValue<number>(SPENDS_CHANGED_KEY)) ??
+    spends.reduce<number | null>((latest, s) => (latest === null || s.loggedAt > latest ? s.loggedAt : latest), null);
   let view: View = { kind: 'today' };
   let notice: string | null = null;
   let showWelcome = false;
-  let logNote = false;
   let menuOpen = false;
 
   const model = (s: AppState) => buildToday({ state: s, spentCents: spentThisMonth(spends, today()), today: today() });
@@ -84,7 +89,6 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
     save(next);
     if (nextView.kind !== view.kind) {
       notice = nextView.kind === 'today' ? notice : null;
-      logNote = false;
       menuOpen = false;
     }
     view = nextView;
@@ -177,12 +181,49 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
       });
     }
 
+    if (view.kind === 'spend') {
+      const { draft } = view;
+      const updateDraft = (change: Partial<SpendDraft>) => {
+        if (view.kind !== 'spend') return;
+        view = { kind: 'spend', draft: { ...view.draft, ...change } };
+        refreshPrimary(canSaveSpend(view.draft, now));
+      };
+      const markChanged = async () => {
+        spendsChangedAt = Date.now();
+        await store.setValue(SPENDS_CHANGED_KEY, spendsChangedAt);
+      };
+      return spendScreen(draft, { min: earliestSpendDate(now), max: isoDate(now) }, canSaveSpend(draft, now), {
+        setAmount: (text) => updateDraft({ amountCents: parseDollars(text) }),
+        setDate: (date) => updateDraft({ date }),
+        cancel: () => go(state, { kind: 'today' }),
+        save: async () => {
+          if (view.kind !== 'spend' || !canSaveSpend(view.draft, now)) return;
+          const current = view.draft;
+          const existing = spends.find((s) => s.id === current.id);
+          const spend = spendFromDraft(current, existing, () => crypto.randomUUID(), Date.now());
+          await store.putSpend(spend);
+          spends = [...spends.filter((s) => s.id !== spend.id), spend];
+          await markChanged();
+          if (!existing) await logger.log('spend_logged');
+          go(state, { kind: 'today' });
+        },
+        remove: async () => {
+          if (!draft.id) return;
+          await store.deleteSpend(draft.id);
+          spends = spends.filter((s) => s.id !== draft.id);
+          await markChanged();
+          go(state, { kind: 'today' });
+        },
+      });
+    }
+
     if (view.kind === 'start-over') {
       return startOverScreen({
         cancel: () => go(state, { kind: 'today' }),
         confirm: async () => {
           await startOver(store);
           spends = [];
+          spendsChangedAt = null;
           notice = null;
           showWelcome = false;
           state = initialState;
@@ -205,14 +246,16 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
       showWelcome = true;
       save({ ...state, welcomeSeen: true });
     }
-    const last = spends.reduce<number | null>((latest, s) => (latest === null || s.loggedAt > latest ? s.loggedAt : latest), null);
     return todayScreen(
       model(state),
       {
         notice,
         welcome: showWelcome ? { ratingUrl: ratingFormUrl(code), installed: window.matchMedia('(display-mode: standalone)').matches } : null,
-        lastUpdated: last === null ? null : new Date(last).toLocaleString('en-SG', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }),
-        logNote,
+        lastUpdated:
+          spendsChangedAt === null
+            ? null
+            : new Date(spendsChangedAt).toLocaleString('en-SG', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }),
+        spends: spendsThisMonth(spends, today()),
         menuOpen,
       },
       {
@@ -221,9 +264,10 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
           if (item) go(state, { kind: 'edit', draft: item });
         },
         addGoal: () => go(state, { kind: 'add' }),
-        logSpend: () => {
-          logNote = true;
-          render(false);
+        logSpend: () => go(state, { kind: 'spend', draft: newSpendDraft(today()) }),
+        openSpend: (id) => {
+          const spend = spends.find((s) => s.id === id);
+          if (spend) go(state, { kind: 'spend', draft: draftFromSpend(spend) });
         },
         dismissWelcome: () => {
           showWelcome = false;
