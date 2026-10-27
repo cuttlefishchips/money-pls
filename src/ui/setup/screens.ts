@@ -6,6 +6,7 @@ export interface StartHandlers {
   toggleItem(choice: ChoiceId): void;
   chooseNotSure(): void;
   setCustomName(name: string): void;
+  back(): void;
   next(): void;
 }
 
@@ -22,7 +23,7 @@ export function startScreen(state: AppState, on: StartHandlers): HTMLElement {
     ),
     isPicked(state, CUSTOM) && textField('What is it?', customName, ITEM_NAME_MAX, on.setCustomName),
     h('div', { class: 'chips chips-apart' }, chip('Not sure yet', undefined, state.route === 'none', on.chooseNotSure)),
-    actions(button('Continue', on.next, 'primary', !canStart(state))),
+    actions(button('Back', on.back), button('Continue', on.next, 'primary', !canStart(state))),
   );
 }
 
@@ -32,11 +33,11 @@ export interface NumbersHandlers {
   next(): void;
 }
 
-export function numbersScreen(state: AppState, on: NumbersHandlers, labels = { back: 'Back', next: 'Continue' }): HTMLElement {
+export function numbersScreen(state: AppState, on: NumbersHandlers, labels: { back?: string; next: string } = { next: 'Continue' }): HTMLElement {
   const { payCents, fixedCents } = state.numbers;
   return screen(
     h('h1', { tabindex: -1 }, 'Your starting numbers'),
-    h('p', { class: 'lead' }, 'Roughly is fine.'),
+    h('p', { class: 'lead' }, 'So we can work out what you can spend each day. Roughly is fine.'),
     h(
       'div',
       { class: 'cards' },
@@ -48,6 +49,6 @@ export function numbersScreen(state: AppState, on: NumbersHandlers, labels = { b
         (text) => on.setNumber('fixedCents', text),
       ),
     ),
-    actions(button(labels.back, on.back), button(labels.next, on.next, 'primary', !numbersDone(state))),
+    actions(labels.back !== undefined && button(labels.back, on.back), button(labels.next, on.next, 'primary', !numbersDone(state))),
   );
 }

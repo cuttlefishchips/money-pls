@@ -80,8 +80,8 @@ On iPhone and iPad, set-up starts only in the installed app, because iOS gives a
 
 Set-up is two screens, then Today. Goals are priced on Today, one at a time, whenever the person is ready.
 
-1. **What are you saving up for?** Hint: "Pick all that apply. You can add prices later, and it's fine not to know yet." Multi-select chips, all one-off: Travel, First home (BTO, renovation, moving out), Emergency fund, Wedding, Further studies, Career break, Big purchase (car, gadgets), and Something else, where the person types their own name. A separate "Not sure yet" choice clears the items. Logs `start_route`.
-2. **Starting numbers.** Take-home pay per month and fixed costs per month including everyday essentials (show what counts: rent or mortgage, bills, insurance, groceries, transport, supporting family, other essentials). "Roughly is fine." A Back button returns to screen 1 with the picks kept.
+1. **Starting numbers.** Under the heading: "So we can work out what you can spend each day. Roughly is fine." Take-home pay per month and fixed costs per month including everyday essentials (show what counts: rent or mortgage, bills, insurance, groceries, transport, supporting family, other essentials).
+2. **What are you saving up for?** Hint: "Pick all that apply. You can add prices later, and it's fine not to know yet." Multi-select chips, all one-off: Travel, First home (BTO, renovation, moving out), Emergency fund, Wedding, Further studies, Career break, Big purchase (car, gadgets), and Something else, where the person types their own name. A separate "Not sure yet" choice clears the items. A Back button returns to screen 1 with the numbers kept. Continue logs `start_route` and opens Today.
 
 Then **Today**, where the app always opens after set-up:
 - The daily number as the headline, with what it is tied to: "keeps you on track for [soonest unfinished goal]" on the target route, or "while you build your safety floor" on the floor route.
@@ -159,7 +159,7 @@ Store in a separate usage log. Every event has `{ v: 1, code, type, ts }` plus o
 | `session` | `duration_s` | when a session ends (page hidden or closed) |
 | `spend_logged` | none | each optional spend saved |
 | `budget_viewed` | none | once per screen visit that shows the daily number or target date, and again when the app returns to the foreground on that screen |
-| `start_route` | `route`: `items`, `none` | once, at set-up screen 1 |
+| `start_route` | `route`: `items`, `none` | once, at set-up screen 2 |
 | `target_decision` | `decision`: `accepted`, `adjusted`, `rejected` | `accepted` when an item is first priced, `adjusted` when a priced item is edited, `rejected` when a priced item is removed. Removing an unpriced item logs nothing |
 | `target_set_later` | none | once, when a person who chose "Not sure yet" first prices an item |
 
@@ -226,4 +226,5 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 - 2026-10-27: Logging uses one "Amount and note" text box read by a local rule, date chips (Today, Yesterday, Pick a date) and "Save and add another". Notes stay on the phone. Story 10 becomes "last caught up", with no per-day marks: when it is 2 or more days old, "free to enjoy" is hidden and the number says which day it is based on. Stories 10 and 20 are Must. Stories 17 to 20 are added and story 3 stays merged into story 2.
 - 2026-10-27: When last caught up is 2 or more days ago, "Within this month's budget" is hidden as well as "free to enjoy"; over-budget and used-up still show.
 - 2026-10-27: The usage log screen (story 15) is reached from the ⋯ menu. It shows events in plain words and exports a plain JSON array of the allowed events.
+- 2026-10-27: Set-up order is starting numbers first, then "What are you saving up for?" with a Back button to the numbers, because the base numbers do not depend on the goals.
 - 2026-10-27: On iPhone and iPad, set-up starts only in the installed app, and the code screen accepts a typed participant code. Constraint 5 now covers a typed code as well as the link. The usage log screen adds "Copy usage log".
