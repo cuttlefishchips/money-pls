@@ -169,9 +169,10 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
           save(setStartCustomName(state, name));
           refreshPrimary(state.items.every((item) => item.name.trim() !== ''));
         },
+        back: () => go({ ...state, step: 'numbers' }),
         next: () => {
           void logger.logOnce('start_route', { route: state.route === 'none' ? 'none' : 'items' });
-          go({ ...state, step: 'numbers' });
+          go({ ...state, step: 'today', setupDate: state.setupDate ?? now }, { kind: 'today' });
         },
       });
     }
@@ -185,10 +186,8 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
             save(setNumber(state, field, parseDollars(text)));
             refreshPrimary(numbersDone(state));
           },
-          back: () =>
-            editing ? go({ ...state, numbers: editing.before }, { kind: 'today' }) : go({ ...state, step: 'start' }),
-          next: () =>
-            editing ? go(state, { kind: 'today' }) : go({ ...state, step: 'today', setupDate: state.setupDate ?? now }, { kind: 'today' }),
+          back: () => editing && go({ ...state, numbers: editing.before }, { kind: 'today' }),
+          next: () => (editing ? go(state, { kind: 'today' }) : go({ ...state, step: 'start' })),
         },
         editing ? { back: 'Cancel', next: 'Save' } : undefined,
       );

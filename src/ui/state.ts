@@ -59,7 +59,7 @@ export const APP_KEY = 'setup';
 const emptyMonth: PartialMonth = { year: null, month: null };
 
 export const initialState: AppState = {
-  step: 'start',
+  step: 'numbers',
   route: null,
   items: [],
   numbers: { payCents: null, fixedCents: null },
@@ -99,7 +99,7 @@ export function loadState(saved: unknown, today: CalDate): AppState {
     })) as GoalItem[];
   const numbers = { payCents: s.numbers?.payCents ?? null, fixedCents: s.numbers?.fixedCents ?? null };
   const numbersDone = numbers.payCents !== null && numbers.fixedCents !== null;
-  const resolvedStep: AppStep = step === 'today' && !numbersDone ? 'numbers' : step;
+  const resolvedStep: AppStep = numbersDone ? step : 'numbers';
 
   return {
     step: resolvedStep,

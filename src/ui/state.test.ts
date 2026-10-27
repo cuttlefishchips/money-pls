@@ -155,22 +155,27 @@ describe('loadState', () => {
     expect(loadState({ step: 'areas', route: 'areas', areas: ['home'] }, today)).toEqual(initialState);
   });
 
+  it('starts set-up on the starting numbers', () => {
+    expect(initialState.step).toBe('numbers');
+  });
+
   it('resumes saved state', () => {
-    const saved = { ...toggleStartItem(initialState, 'travel'), step: 'numbers' as const };
+    const saved = { ...setNumber(setNumber(toggleStartItem(initialState, 'travel'), 'payCents', 1), 'fixedCents', 0), step: 'start' as const };
     expect(loadState(saved, today)).toEqual(saved);
   });
 
   it('moves progress from the old gated set-up to the matching new step, keeping items', () => {
     const items = [{ choice: 'travel', name: 'Travel', costCents: 100 }];
-    expect(loadState({ step: 'items', route: 'items', items }, today).step).toBe('start');
+    expect(loadState({ step: 'items', route: 'items', items, numbers: { payCents: 1, fixedCents: 1 } }, today).step).toBe('start');
     expect(loadState({ step: 'prices', route: 'items', items }, today).step).toBe('numbers');
     const done = loadState({ step: 'done', route: 'items', items, numbers: { payCents: 1, fixedCents: 1 } }, today);
     expect(done).toMatchObject({ step: 'today', setupDate: today });
     expect(done.items[0]).toMatchObject({ id: 'travel', costCents: 100, useFixedCostMonths: false });
   });
 
-  it('sends people back to their numbers if Today was reached without them', () => {
+  it('sends people back to their numbers if a later step was reached without them', () => {
     expect(loadState({ step: 'done', route: 'none', items: [] }, today).step).toBe('numbers');
+    expect(loadState({ step: 'start', route: 'items', items: [] }, today).step).toBe('numbers');
   });
 
   it('drops retired items', () => {
