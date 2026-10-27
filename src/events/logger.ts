@@ -1,9 +1,9 @@
 import type { Store } from '../storage';
-import { EVENT_VERSION, isValidEvent, type EventExtras, type EventType, type UsageEvent } from './schema';
+import { EVENT_VERSION, isValidEvent, type EventType, type ExtrasArgs, type UsageEvent } from './schema';
 
 export interface UsageLogger {
-  log<T extends EventType>(type: T, ...extras: EventExtras[T] extends Record<string, never> ? [] : [EventExtras[T]]): Promise<void>;
-  logOnce<T extends EventType>(type: T, ...extras: EventExtras[T] extends Record<string, never> ? [] : [EventExtras[T]]): Promise<void>;
+  log<T extends EventType>(type: T, ...extras: ExtrasArgs<T>): Promise<void>;
+  logOnce<T extends EventType>(type: T, ...extras: ExtrasArgs<T>): Promise<void>;
 }
 
 export class InvalidEventError extends Error {}
