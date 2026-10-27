@@ -9,8 +9,8 @@ import type { GoalView, TodayModel } from './model';
 export interface TodayView {
   notice: string | null;
   welcome: { ratingUrl: string | null; installed: boolean } | null;
-  lastUpdated: string | null;
-  spends: Spend[];
+  caughtUp: { label: string; stale: boolean };
+  spends: { spend: Spend; label: string }[];
   menuOpen: boolean;
 }
 
@@ -61,7 +61,7 @@ export function todayScreen(model: TodayModel, view: TodayView, on: TodayHandler
     model.status === 'check-numbers' && h('div', { class: 'card card-care' }, h('p', {}, CHECK_NUMBERS)),
     h('h2', { class: 'section-title' }, "This month's spends"),
     view.spends.length
-      ? h('div', { class: 'spend-list' }, ...view.spends.map((spend) => spendRow(spend, on)))
+      ? h('div', { class: 'spend-list' }, ...view.spends.map(({ spend, label }) => spendRow(spend, label, on)))
       : h('p', { class: 'goal-meta' }, 'Nothing logged this month yet.'),
     h('h2', { class: 'section-title' }, 'Your goals'),
     model.goals.length
@@ -94,6 +94,7 @@ function dailyCard(model: TodayModel, view: TodayView, on: TodayHandlers): HTMLE
     h('p', { class: 'daily-label' }, 'Today you can spend about'),
     h('p', { class: 'daily-number' }, ok ? formatSGD(model.dailyCents ?? 0, 'down') : 'Not set yet'),
     ok && h('p', { class: 'daily-label' }, tiedTo),
+    ok && view.caughtUp.stale && h('p', { class: 'stale-note' }, `Based on spends logged up to ${view.caughtUp.label}`),
     ok &&
       h(
         'dl',
@@ -105,17 +106,15 @@ function dailyCard(model: TodayModel, view: TodayView, on: TodayHandlers): HTMLE
       ),
     ok && paceLine(model),
     h('div', { class: 'actions-inline' }, button('Log a spend', on.logSpend, 'primary')),
-    h('p', { class: 'goal-meta' }, view.lastUpdated ? `Last updated ${view.lastUpdated}` : 'No spends logged yet'),
+    h('p', { class: 'goal-meta' }, `Last caught up: ${view.caughtUp.label}`),
   );
 }
 
-function spendRow(spend: Spend, on: TodayHandlers): HTMLElement {
-  const [year, month, day] = spend.date.split('-').map(Number);
-  const label = new Date(year!, month! - 1, day!).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' });
+function spendRow(spend: Spend, label: string, on: TodayHandlers): HTMLElement {
   return h(
     'button',
     { type: 'button', class: 'spend-row', onClick: () => on.openSpend(spend.id), 'aria-label': `Edit ${formatSGD(spend.amountCents)} on ${label}` },
-    h('span', {}, label),
+    h('span', { class: 'spend-text' }, h('span', {}, label), spend.note && h('span', { class: 'goal-meta' }, spend.note)),
     h('span', { class: 'spend-amount' }, formatSGD(spend.amountCents)),
   );
 }

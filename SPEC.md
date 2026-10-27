@@ -30,24 +30,27 @@ Priority: Must = needed for the test to work. Should = add if time allows. Build
 ### Target and plan (set-up)
 | # | As a participant, I want to | Priority |
 |---|---|---|
-| 1 | Enter my take-home pay, fixed costs including everyday essentials, and savings set aside, so the tool knows my starting point. | Must |
+| 1 | Enter my take-home pay and fixed costs including everyday essentials, so the tool knows my starting point. | Must |
 | 2 | Pick what I want money for in the next few years and enter a rough price for each, so my target reflects the life I want. | Must |
-| 3 | Merged into story 2 on 2026-10-20. Picking a single item covers starting with one goal. | n/a |
+| 3 | Merged into story 2. Picking a single item covers starting with one goal. | n/a |
 | 4 | Skip the goal and get a safety floor and starting split, so I can start without deciding what I want yet. | Must |
 | 5 | See my target, monthly amount and target date, and adjust them, so the target feels like mine. | Must |
+| 17 | Add a goal later from Today, so I can start before I know everything I want. | Must |
 
 ### Spending decisions
 | # | Story | Priority |
 |---|---|---|
 | 6 | See a daily number tied to my target, so I know what I can spend today without working it out. | Must |
 | 7 | Be told how much is free to enjoy when I am ahead of pace, so I can spend without guilt. | Should |
+| 18 | See how pricing a goal changes my daily number, so each goal has a visible effect. | Must |
 
 ### Spending log
 | # | Story | Priority |
 |---|---|---|
-| 8 | Log an optional spend in a few seconds, so my daily number stays accurate. | Must |
+| 8 | Log an optional spend, with an optional note, in a few seconds, so my daily number stays accurate. | Must |
 | 9 | Edit or delete an entry, so a mistake does not distort my number. | Must |
-| 10 | See when my number was last updated and which days have no entries, so I know how far to trust it. | Should |
+| 10 | See when I last caught up on logging, so I know how far to trust my number. | Must |
+| 20 | Catch up on several past spends in one go, so logging after the fact is quick. | Must |
 
 ### Monthly review
 | # | Story | Priority |
@@ -66,11 +69,12 @@ Priority: Must = needed for the test to work. Should = add if time allows. Build
 | 14 | Open the tool from my own link, so my usage file carries my participant code without an account. | Must |
 | 15 | Read and export my usage log in weeks 2 and 4, so I control exactly what I share. | Must |
 | 16 | Be offered a one-tap rating form at the end of my first session, so my first impression is captured while it is fresh. | Must |
+| 19 | Start over, so I can redo set-up without losing my participant link. | Must |
 
 ### Not in scope
-Accounts, logins, bank connections, account lists, categories, several goals, preset cost ranges, "what if I buy this", spends priced in life terms, reminders or notifications, refinement prompts, guided catch-up, any analytics sent automatically.
+Accounts, logins, bank connections, account lists, categories, splitting a spend with others, preset cost ranges, "what if I buy this", spends priced in life terms, reminders or notifications, refinement prompts, guided catch-up, any analytics sent automatically.
 
-## 4. Set-up flow and Today (stories 1 to 6, 13 and 16)
+## 4. Set-up flow and Today (stories 1 to 10, 13, 16 to 20)
 
 Set-up is two screens, then Today. Goals are priced on Today, one at a time, whenever the person is ready.
 
@@ -85,9 +89,10 @@ Then **Today**, where the app always opens after set-up:
 - Until at least one item is priced, Today uses the floor route. Once one is, it uses the target route over the priced items only. Removing every priced item returns to the floor route.
 - When an item is first priced, Today shows "Adding [item] by [month]: S$[new] a day, down from S$[old]". When the daily number does not change because the safety saving already covers the goal, it shows "Adding [item] by [month]: still S$[n] a day, your safety saving already covers it".
 - On the first visit, a one-time card shows the home-screen guide and a link to the rating form (URL configurable, pre-filled with the participant code).
-- **Log a spend** opens a screen with the amount and the date (today by default, any day in the last 31 days, never in the future), under one line: "Only log spending. Transfers and card bill payments don't count." Saving updates the daily number, pace and last updated straight away. Each new spend fires `spend_logged`.
-- "This month's spends" lists this month's spends on Today, newest first. Tapping one edits its amount or date, or deletes it. Edits and deletes update the number but fire no event.
-- "Last updated" is the time of the last spend added, edited or deleted.
+- **Log a spend** (stories 8 and 20) has one text box, "Amount and note". A simple local rule, with no AI, reads the amount from the start of the text (or the end, if the start is not a number), and the rest is an optional note: "12.50 white beehoon" saves S$12.50 with the note "white beehoon". A preview shows what will be saved. The date is set with chips for Today, Yesterday and Pick a date (up to 31 days back, never in the future). "Save and add another" saves and keeps the chosen date for the next spend. Copy: "Log only your share. Transfers, card bill payments and everyday essentials like transport don't count." Each new spend fires `spend_logged`.
+- Notes stay on the phone. They show in this month's spends list and never appear in usage events or exports.
+- "This month's spends" lists this month's spends on Today, newest first, with their notes. Tapping one edits it in the same text box, or deletes it. Edits and deletes update the number but fire no event.
+- **Last caught up** (story 10) is the time of the most recent save, edit or delete of a spend, whatever date the spend is for, or the set-up day before any spend. Today always shows "Last caught up: [day]". When that was 2 or more days ago, Today hides "free to enjoy" and shows "Based on spends logged up to [day]" under the daily number. Over-budget still shows, because logged spends can only undercount.
 - Pay and fixed costs can be changed from Today.
 - A small menu on Today offers "Start over", with a confirmation. It clears the goals, numbers and spends on the phone, and keeps the participant code and the usage log.
 
@@ -215,3 +220,4 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 - 2026-10-21: Onboarding is progressive. Set-up is "What are you saving up for?" (or "Not sure yet") and starting numbers, then Today. Goals are priced from their cards on Today. Today uses the floor route until one item is priced, then the target route over priced items. The "Try a safety floor instead" option and the separate result and done screens are removed. `target_decision` follows pricing, editing and removing items.
 - 2026-10-21: On the target route, the amount set aside is the larger of the goals' total and the floor route's safety saving, so pricing a goal never raises the daily number. `rejected` is logged only when a priced item is removed. Set-up screen 2 has a Back button, and Today has a "Start over" menu option that keeps the participant code and usage log.
 - 2026-10-26: Spends are logged, edited and deleted from Today. A spend has an amount and a date from the last 31 days, with no note. `spend_logged` fires only for new spends. "Last updated" is the time of the last add, edit or delete, and Start over clears it.
+- 2026-10-27: Logging uses one "Amount and note" text box read by a local rule, date chips (Today, Yesterday, Pick a date) and "Save and add another". Notes stay on the phone. Story 10 becomes "last caught up", with no per-day marks: when it is 2 or more days old, "free to enjoy" is hidden and the number says which day it is based on. Stories 10 and 20 are Must. Stories 17 to 20 are added and story 3 stays merged into story 2.

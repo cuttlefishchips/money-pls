@@ -30,9 +30,10 @@ export interface TodayInputs {
   state: AppState;
   spentCents: number;
   today: CalDate;
+  stale?: boolean;
 }
 
-export function buildToday({ state, spentCents, today }: TodayInputs): TodayModel {
+export function buildToday({ state, spentCents, today, stale = false }: TodayInputs): TodayModel {
   const payCents = state.numbers.payCents ?? 0;
   const fixedCents = state.numbers.fixedCents ?? 0;
   const setupDate = state.setupDate ?? today;
@@ -62,12 +63,13 @@ export function buildToday({ state, spentCents, today }: TodayInputs): TodayMode
 
   const withDaily = (base: TodayModel, safeToSpendCents: number, delayItemMonthlyCents: number | null): TodayModel => {
     const status = dailyStatus({ safeToSpendCents, delayItemMonthlyCents, spentCents, setupDate, today });
+    const hideAhead = stale && status.pace === 'ahead';
     return {
       ...base,
       dailyCents: status.dailyCents,
       usedUp: status.usedUp,
-      pace: status.pace,
-      freeToEnjoyCents: status.freeToEnjoyCents,
+      pace: hideAhead ? null : status.pace,
+      freeToEnjoyCents: hideAhead ? null : status.freeToEnjoyCents,
       delayWeeks: status.delayWeeks,
     };
   };
