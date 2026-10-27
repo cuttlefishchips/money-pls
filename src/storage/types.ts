@@ -6,6 +6,7 @@ export interface Spend {
   amountCents: number;
   date: string;
   loggedAt: number;
+  note?: string;
 }
 
 export type UsageRecord = Readonly<Record<string, string | number>>;

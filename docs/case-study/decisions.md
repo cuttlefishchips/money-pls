@@ -59,3 +59,10 @@
 - This month's spends are listed on Today and open for editing or deleting, so a mistake never distorts the number.
 - `spend_logged` fires only for new spends, matching "each optional spend saved". Edits and deletes are corrections, not new logging, so they are not counted.
 - "Last updated" shows when the spends last changed, including edits and deletes, because that is when the number last moved.
+
+## 2026-10-27
+- Story 10 tracks "last caught up", the last time any spend was saved, edited or deleted, in place of "nothing spent today" or per-day "not logged" marks. People log in batches after the fact, so confirming each day was a chore.
+- When the last catch-up is 2 or more days old, "free to enjoy" is hidden and the daily number says which day it is based on, because unlogged days would otherwise look like days with no spending. Over-budget still shows, because logged spends can only undercount.
+- Logging uses one text box: "12.50 white beehoon" becomes S$12.50 with the note "white beehoon". A simple local rule reads it, with no AI. Notes help people recognise entries later and stay on the phone, never in usage events or exports.
+- Quick date chips and "Save and add another", which keeps the chosen date, make catching up on several past spends quick (story 20, now a must-have).
+- The log screen says "Log only your share", because splits are not supported, so people log only what they paid themselves.

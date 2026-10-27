@@ -110,6 +110,24 @@ describe('buildToday', () => {
   });
 });
 
+describe('stale spends', () => {
+  const later = { year: 2026, month: 10, day: 28 };
+  const state = withNumbers(addItem(initialState, 'travel'));
+
+  it('shows free to enjoy when caught up and ahead', () => {
+    expect(buildToday({ state, spentCents: 0, today: later })).toMatchObject({ pace: 'ahead' });
+    expect(buildToday({ state, spentCents: 0, today: later }).freeToEnjoyCents).toBeGreaterThan(0);
+  });
+
+  it('hides ahead and free to enjoy when not caught up', () => {
+    expect(buildToday({ state, spentCents: 0, today: later, stale: true })).toMatchObject({ pace: null, freeToEnjoyCents: null });
+  });
+
+  it('still shows over budget when not caught up, since logged spends can only undercount', () => {
+    expect(buildToday({ state, spentCents: 10_000_000, today: later, stale: true }).pace).toBe('over');
+  });
+});
+
 describe('spentThisMonth', () => {
   it('adds up only spends dated in the current month', () => {
     const spends = [
