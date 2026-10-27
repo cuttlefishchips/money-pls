@@ -66,3 +66,6 @@
 - Logging uses one text box: "12.50 white beehoon" becomes S$12.50 with the note "white beehoon". A simple local rule reads it, with no AI. Notes help people recognise entries later and stay on the phone, never in usage events or exports.
 - Quick date chips and "Save and add another", which keeps the chosen date, make catching up on several past spends quick (story 20, now a must-have).
 - The log screen says "Log only your share", because splits are not supported, so people log only what they paid themselves.
+- When last caught up is 2 or more days ago, "Within this month's budget" is hidden too, and only over-budget and used-up still show. With days unlogged, being within budget is not known, while going over is, because logged spends can only undercount.
+- The usage log is shown in plain words before it is saved, grouped by day, so people can see exactly what they would share. The file is a plain JSON array of the allowed events, with nothing added. Entries that fail the allowed list are left out of both the screen and the file.
+- The file is saved through the phone's share sheet where available, because downloads from an installed web app are unreliable on iPhone. Elsewhere it downloads.

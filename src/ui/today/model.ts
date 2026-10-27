@@ -63,13 +63,13 @@ export function buildToday({ state, spentCents, today, stale = false }: TodayInp
 
   const withDaily = (base: TodayModel, safeToSpendCents: number, delayItemMonthlyCents: number | null): TodayModel => {
     const status = dailyStatus({ safeToSpendCents, delayItemMonthlyCents, spentCents, setupDate, today });
-    const hideAhead = stale && status.pace === 'ahead';
+    const hidePace = stale && status.pace !== 'over';
     return {
       ...base,
       dailyCents: status.dailyCents,
       usedUp: status.usedUp,
-      pace: hideAhead ? null : status.pace,
-      freeToEnjoyCents: hideAhead ? null : status.freeToEnjoyCents,
+      pace: hidePace ? null : status.pace,
+      freeToEnjoyCents: hidePace ? null : status.freeToEnjoyCents,
       delayWeeks: status.delayWeeks,
     };
   };

@@ -6,14 +6,18 @@ export const DECISIONS = ['accepted', 'adjusted', 'rejected'] as const;
 export type Route = (typeof ROUTES)[number];
 export type Decision = (typeof DECISIONS)[number];
 
+type NoExtras = Record<never, never>;
+
 export interface EventExtras {
   session: { duration_s: number };
-  spend_logged: Record<string, never>;
-  budget_viewed: Record<string, never>;
+  spend_logged: NoExtras;
+  budget_viewed: NoExtras;
   start_route: { route: Route };
   target_decision: { decision: Decision };
-  target_set_later: Record<string, never>;
+  target_set_later: NoExtras;
 }
+
+export type ExtrasArgs<T extends EventType> = keyof EventExtras[T] extends never ? [] : [EventExtras[T]];
 
 export type EventType = keyof EventExtras;
 

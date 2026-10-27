@@ -23,6 +23,7 @@ export interface TodayHandlers {
   changeNumbers(): void;
   toggleMenu(): void;
   startOver(): void;
+  openUsage(): void;
 }
 
 const CHECK_NUMBERS =
@@ -47,7 +48,7 @@ export function todayScreen(model: TodayModel, view: TodayView, on: TodayHandler
         '⋯',
       ),
     ),
-    view.menuOpen && h('div', { class: 'card menu', id: 'today-menu' }, button('Start over', on.startOver)),
+    view.menuOpen && h('div', { class: 'card menu', id: 'today-menu' }, button('Your usage log', on.openUsage), button('Start over', on.startOver)),
     view.notice && h('div', { class: 'card notice', role: 'status' }, h('p', {}, view.notice)),
     view.welcome && welcomeCard(view.welcome, on),
     dailyCard(model, view, on),
@@ -119,7 +120,7 @@ function spendRow(spend: Spend, label: string, on: TodayHandlers): HTMLElement {
   );
 }
 
-function paceLine(model: TodayModel): HTMLElement {
+function paceLine(model: TodayModel): HTMLElement | null {
   if (model.pace === 'over') {
     const delay =
       model.delayWeeks && model.tiedTo
@@ -131,7 +132,7 @@ function paceLine(model: TodayModel): HTMLElement {
   if (model.pace === 'ahead' && model.freeToEnjoyCents !== null) {
     return h('p', { class: 'pace pace-ahead' }, `About ${formatSGD(model.freeToEnjoyCents, 'down')} free to enjoy`);
   }
-  return h('p', { class: 'pace' }, "Within this month's budget");
+  return model.pace === 'within' ? h('p', { class: 'pace' }, "Within this month's budget") : null;
 }
 
 function goalCard(goal: GoalView, on: TodayHandlers): HTMLElement {

@@ -123,6 +123,17 @@ describe('stale spends', () => {
     expect(buildToday({ state, spentCents: 0, today: later, stale: true })).toMatchObject({ pace: null, freeToEnjoyCents: null });
   });
 
+  it('hides within budget when not caught up', () => {
+    expect(buildToday({ state, spentCents: 50_000, today: later })).toMatchObject({ pace: 'within' });
+    expect(buildToday({ state, spentCents: 50_000, today: later, stale: true })).toMatchObject({ pace: null });
+  });
+
+  it('still says spending is used up when not caught up', () => {
+    const atLimit = buildToday({ state, spentCents: 0, today: later }).leftCents ?? 0;
+    const proratedFromStart = buildToday({ state: { ...state, setupDate: { year: 2026, month: 10, day: 1 } }, spentCents: atLimit, today: later, stale: true });
+    expect(proratedFromStart.usedUp).toBe(true);
+  });
+
   it('still shows over budget when not caught up, since logged spends can only undercount', () => {
     expect(buildToday({ state, spentCents: 10_000_000, today: later, stale: true }).pace).toBe('over');
   });

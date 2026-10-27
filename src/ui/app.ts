@@ -1,7 +1,9 @@
 import { ratingFormUrl } from '../../config/app';
 import { toCalDate } from '../calc/dates';
 import { formatSGD, parseDollars } from '../calc/money';
-import type { BudgetViewTracker, UsageLogger } from '../events';
+import { exportFileName, exportJson, prepareExport, type BudgetViewTracker, type UsageEvent, type UsageLogger } from '../events';
+import { saveTextFile } from './save-file';
+import { usageScreen } from './usage-screen';
 import type { Spend, Store } from '../storage';
 import { monthLabel } from './fields';
 import { numbersScreen, startScreen } from './setup/screens';
@@ -63,7 +65,8 @@ type View =
   | { kind: 'add' }
   | { kind: 'numbers'; before: StartingNumbers }
   | { kind: 'start-over' }
-  | { kind: 'spend'; draft: SpendDraft; savedMessage: string | null };
+  | { kind: 'spend'; draft: SpendDraft; savedMessage: string | null }
+  | { kind: 'usage'; events: UsageEvent[]; skipped: number; savedNote: string | null };
 
 export function changeNotice(
   name: string,
@@ -282,6 +285,25 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
       );
     }
 
+    if (view.kind === 'usage') {
+      const fileName = exportFileName(code, now);
+      const { events, skipped } = view;
+      return usageScreen(
+        { events, skipped, code, fileName, savedNote: view.savedNote },
+        {
+          back: () => go(state, { kind: 'today' }),
+          save: async () => {
+            const result = await saveTextFile(fileName, exportJson(events));
+            if (view.kind !== 'usage') return;
+            const savedNote =
+              result === 'cancelled' ? null : result === 'shared' ? 'Usage file ready to share.' : `Saved ${fileName}. Check your downloads.`;
+            view = { ...view, savedNote };
+            render(false);
+          },
+        },
+      );
+    }
+
     if (view.kind === 'start-over') {
       return startOverScreen({
         cancel: () => go(state, { kind: 'today' }),
@@ -345,6 +367,10 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
           render(false);
         },
         startOver: () => go(state, { kind: 'start-over' }),
+        openUsage: async () => {
+          const { events, skipped } = prepareExport(await store.listUsage());
+          go(state, { kind: 'usage', events, skipped, savedNote: null });
+        },
       },
     );
   }
