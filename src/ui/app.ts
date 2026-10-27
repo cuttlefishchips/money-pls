@@ -2,6 +2,7 @@ import { ratingFormUrl } from '../../config/app';
 import { toCalDate } from '../calc/dates';
 import { formatSGD, parseDollars } from '../calc/money';
 import { exportFileName, exportJson, prepareExport, type BudgetViewTracker, type UsageEvent, type UsageLogger } from '../events';
+import { currentPlatform } from '../participant/platform';
 import { copyText, saveTextFile } from './save-file';
 import { usageScreen } from './usage-screen';
 import type { Spend, Store } from '../storage';
@@ -348,7 +349,7 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
       model(state),
       {
         notice,
-        welcome: showWelcome ? { ratingUrl: ratingFormUrl(code), installed: window.matchMedia('(display-mode: standalone)').matches } : null,
+        welcome: showWelcome ? { ratingUrl: ratingFormUrl(code), installed: currentPlatform().standalone } : null,
         caughtUp: { label: dayLabel(caughtUp(), today()), stale: isStale(caughtUp(), today()) },
         spends: spendsThisMonth(spends, today()).map((spend) => {
           const [year, month, day] = spend.date.split('-').map(Number);
