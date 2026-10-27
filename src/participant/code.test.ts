@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createUsageLogger } from '../events/logger';
 import { createMemoryStore } from '../storage/memory';
-import { CODE_KEY, codeFromHash, resolveParticipant, switchParticipant } from './code';
+import { CODE_KEY, codeFromHash, normaliseCode, resolveParticipant, switchParticipant } from './code';
 
 describe('codeFromHash', () => {
   it('reads the code from the fragment', () => {
@@ -83,5 +83,19 @@ describe('organiser data', () => {
     await logger.log('spend_logged');
     await logger.log('session', { duration_s: 4 });
     expect((await store.listUsage()).every((e) => e.code === 'ORG1')).toBe(true);
+  });
+});
+
+describe('normaliseCode', () => {
+  it('accepts a typed code with the same rules as the link', () => {
+    expect(normaliseCode(' p3 ')).toBe('P3');
+    expect(normaliseCode('org1')).toBe('ORG1');
+  });
+
+  it('rejects anything else', () => {
+    expect(normaliseCode('')).toBeNull();
+    expect(normaliseCode('P 3')).toBeNull();
+    expect(normaliseCode('A'.repeat(13))).toBeNull();
+    expect(normaliseCode(null)).toBeNull();
   });
 });

@@ -10,7 +10,7 @@ Every change must respect all of these. A change that breaks one is a bug, whate
 2. No backend. Static files only, deployed to GitHub Pages.
 3. Installable progressive web app that works offline after the first load.
 4. Logic is deterministic rules in a standalone module, with no AI.
-5. Participants are identified only by a code in the URL fragment, for example `https://.../#p=P3`. The fragment is never sent to the server. The app does not start without a code.
+5. Participants are identified only by a participant code, given in the URL fragment of their personal link (for example `https://.../#p=P3`) or typed on the code screen. The code is never sent to a server. The app does not start without a code.
 6. Usage data is limited to the six event types in SPEC.md section 6. Anything else is a bug.
 7. Missing data is shown as missing and never estimated.
 8. Transfers and card bill payments never count as spending.

@@ -4,6 +4,7 @@ import { actions, button, h, screen } from './dom';
 export interface UsageHandlers {
   back(): void;
   save(): void;
+  copy(): void;
 }
 
 export interface UsageView {
@@ -43,7 +44,11 @@ export function usageScreen(view: UsageView, on: UsageHandlers): HTMLElement {
       { class: 'lead' },
       `This is everything Money Pls records about how you use it, under your code ${view.code}. It never includes amounts, notes or names. You choose whether to share it.`,
     ),
-    topActions(button('Back', on.back), button('Save usage file', on.save, 'primary', view.events.length === 0)),
+    topActions(
+      button('Back', on.back),
+      button('Copy usage log', on.copy, 'secondary', view.events.length === 0),
+      button('Save usage file', on.save, 'primary', view.events.length === 0),
+    ),
     h('p', { class: 'goal-meta' }, `Saves as ${view.fileName}`),
     view.savedNote && h('div', { class: 'card notice', role: 'status' }, h('p', {}, view.savedNote)),
     view.skipped > 0 &&

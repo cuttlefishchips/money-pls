@@ -2,7 +2,7 @@ import { ratingFormUrl } from '../../config/app';
 import { toCalDate } from '../calc/dates';
 import { formatSGD, parseDollars } from '../calc/money';
 import { exportFileName, exportJson, prepareExport, type BudgetViewTracker, type UsageEvent, type UsageLogger } from '../events';
-import { saveTextFile } from './save-file';
+import { copyText, saveTextFile } from './save-file';
 import { usageScreen } from './usage-screen';
 import type { Spend, Store } from '../storage';
 import { monthLabel } from './fields';
@@ -298,6 +298,17 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
             const savedNote =
               result === 'cancelled' ? null : result === 'shared' ? 'Usage file ready to share.' : `Saved ${fileName}. Check your downloads.`;
             view = { ...view, savedNote };
+            render(false);
+          },
+          copy: async () => {
+            const copied = await copyText(exportJson(events));
+            if (view.kind !== 'usage') return;
+            view = {
+              ...view,
+              savedNote: copied
+                ? 'Usage log copied. Paste it into a message to share it.'
+                : "Couldn't copy on this phone. Try Save usage file instead.",
+            };
             render(false);
           },
         },
