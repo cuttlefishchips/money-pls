@@ -570,3 +570,23 @@ select.text-input {
   margin-top: 0;
   padding-top: 8px;
 }
+
+.steps {
+  margin: 0 0 12px;
+  padding-left: 40px;
+}
+
+.steps li + li {
+  margin-top: 8px;
+}
+
+.code-card {
+  text-align: center;
+}
+
+.code {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}

@@ -8,9 +8,13 @@ export type Participant =
   | { kind: 'missing' }
   | { kind: 'confirm-switch'; current: string; next: string };
 
-export function codeFromHash(hash: string): string | null {
-  const code = new URLSearchParams(hash.replace(/^#/, '')).get('p')?.trim().toUpperCase();
+export function normaliseCode(text: string | null | undefined): string | null {
+  const code = text?.trim().toUpperCase();
   return code && isValidCode(code) ? code : null;
+}
+
+export function codeFromHash(hash: string): string | null {
+  return normaliseCode(new URLSearchParams(hash.replace(/^#/, '')).get('p'));
 }
 
 export async function resolveParticipant(store: Store, hash: string): Promise<Participant> {

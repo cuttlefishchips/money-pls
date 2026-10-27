@@ -16,7 +16,7 @@ A web app that runs on a person's phone. It turns a few numbers and the life the
 2. No backend. Static files only, deployed to GitHub Pages.
 3. Installable progressive web app that works offline after the first load.
 4. Logic is deterministic rules in a standalone module, with no AI.
-5. Participants are identified only by a code in the URL fragment, for example `https://.../#p=P3`. The fragment is never sent to the server. The app does not start without a code.
+5. Participants are identified only by a participant code, given in the URL fragment of their personal link (for example `https://.../#p=P3`) or typed on the code screen. The code is never sent to a server. The app does not start without a code.
 6. Usage data is limited to the six event types in section 6. Anything else is a bug.
 7. Missing data is shown as missing and never estimated.
 8. Transfers and card bill payments never count as spending.
@@ -76,6 +76,8 @@ Accounts, logins, bank connections, account lists, categories, splitting a spend
 
 ## 4. Set-up flow and Today (stories 1 to 10, 13, 16 to 20)
 
+On iPhone and iPad, set-up starts only in the installed app, because iOS gives an app added to the home screen its own storage, separate from the browser. Opened in a browser there, the app shows "Add Money Pls to your home screen first" with the Safari steps and the participant code from the link, and stores nothing. The installed app opens without the link's fragment, so the code screen asks "Enter your participant code", with the same rules as the link. Other browsers keep the link flow.
+
 Set-up is two screens, then Today. Goals are priced on Today, one at a time, whenever the person is ready.
 
 1. **What are you saving up for?** Hint: "Pick all that apply. You can add prices later, and it's fine not to know yet." Multi-select chips, all one-off: Travel, First home (BTO, renovation, moving out), Emergency fund, Wedding, Further studies, Career break, Big purchase (car, gadgets), and Something else, where the person types their own name. A separate "Not sure yet" choice clears the items. Logs `start_route`.
@@ -94,7 +96,7 @@ Then **Today**, where the app always opens after set-up:
 - "This month's spends" lists this month's spends on Today, newest first, with their notes. Tapping one edits it in the same text box, or deletes it. Edits and deletes update the number but fire no event.
 - **Last caught up** (story 10) is the time of the most recent save, edit or delete of a spend, whatever date the spend is for, or the set-up day before any spend. Today always shows "Last caught up: [day]". When that was 2 or more days ago, Today hides "free to enjoy" and "Within this month's budget" and shows "Based on spends logged up to [day]" under the daily number. Over-budget still shows, because logged spends can only undercount.
 - Pay and fixed costs can be changed from Today.
-- **Your usage log** (story 15), from the ⋯ menu, lists every usage event in plain words, grouped by day, newest first, with no amounts or notes: for example "Opened the app, 3 minutes", "Logged a spend", "Looked at the daily number", "Priced a goal". "Save usage file" exports the events as a JSON array named `usage-<code>-<date>.json`, through the phone's share sheet where available, or as a download. Entries that fail the allowed list are left out of both and counted on screen.
+- **Your usage log** (story 15), from the ⋯ menu, lists every usage event in plain words, grouped by day, newest first, with no amounts or notes: for example "Opened the app, 3 minutes", "Logged a spend", "Looked at the daily number", "Priced a goal". "Save usage file" exports the events as a JSON array named `usage-<code>-<date>.json`, through the phone's share sheet where available, or as a download. "Copy usage log" copies the same JSON as text. Entries that fail the allowed list are left out of both and counted on screen.
 - A small menu on Today offers "Start over", with a confirmation. It clears the goals, numbers and spends on the phone, and keeps the participant code and the usage log.
 
 Set-up progress and Today are saved on the device, so leaving part-way resumes where the person stopped.
@@ -224,3 +226,4 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 - 2026-10-27: Logging uses one "Amount and note" text box read by a local rule, date chips (Today, Yesterday, Pick a date) and "Save and add another". Notes stay on the phone. Story 10 becomes "last caught up", with no per-day marks: when it is 2 or more days old, "free to enjoy" is hidden and the number says which day it is based on. Stories 10 and 20 are Must. Stories 17 to 20 are added and story 3 stays merged into story 2.
 - 2026-10-27: When last caught up is 2 or more days ago, "Within this month's budget" is hidden as well as "free to enjoy"; over-budget and used-up still show.
 - 2026-10-27: The usage log screen (story 15) is reached from the ⋯ menu. It shows events in plain words and exports a plain JSON array of the allowed events.
+- 2026-10-27: On iPhone and iPad, set-up starts only in the installed app, and the code screen accepts a typed participant code. Constraint 5 now covers a typed code as well as the link. The usage log screen adds "Copy usage log".
