@@ -154,7 +154,7 @@ describe('spentThisMonth', () => {
 describe('buildToday on the budget route', () => {
   const budgetState: AppState = { ...initialState, entry: 'budget', budgetCents: 110_000, step: 'today', setupDate };
 
-  it('uses the whole budget as safe-to-spend, with no saving, floor or goals', () => {
+  it('uses the budget as safe-to-spend, prorated in the first month, with no saving, floor or goals', () => {
     const model = buildToday({ state: budgetState, spentCents: 10_000, today });
     expect(model).toMatchObject({
       mode: 'budget',
@@ -163,7 +163,7 @@ describe('buildToday on the budget route', () => {
       setAsideCents: null,
       floorCents: null,
       tiedTo: null,
-      dailyCents: 9_090,
+      dailyCents: 2_639,
       delayWeeks: null,
       goals: [],
     });

@@ -82,7 +82,7 @@ On iPhone and iPad, set-up starts only in the installed app, because iOS gives a
 
 Set-up is one screen, then Today. Goals are picked and priced on Today, whenever the person is ready.
 
-1. **Starting numbers.** Under the heading: "So we can work out what you can spend each day. Roughly is fine." Take-home pay per month and fixed costs per month. Fixed costs are only costs that are the same amount every month, such as rent or mortgage, bills, insurance and supporting family. The help text says groceries, transport and anything that varies go in the log. A link, "Rather set a monthly budget?", swaps the two questions for one (story 21): "How much do you want to spend for the rest of this month, on top of rent and bills?" in the set-up month, and "How much do you want to spend this month, on top of rent and bills?" when the budget is changed in a later month A link back, "Use my pay and fixed costs instead", returns to the pay questions. Continue opens Today.
+1. **Starting numbers.** Under the heading: "So we can work out what you can spend each day. Roughly is fine." Take-home pay per month and fixed costs per month. Fixed costs are only costs that are the same amount every month, such as rent or mortgage, bills, insurance and supporting family. The help text says groceries, transport and anything that varies go in the log. A link, "Rather set a monthly budget?", swaps the two questions for one (story 21): "How much do you want to spend in a month, on top of rent and bills?" A link back, "Use my pay and fixed costs instead", returns to the pay questions. Continue opens Today.
 
 Then **Today**, where the app always opens after set-up:
 - **What are you saving up for?** (stories 2 and 4). On the pay route, until it is answered, Today shows a card under the daily number with the same multi-select chips as before: Travel, First home (BTO, renovation, moving out), Emergency fund, Wedding, Further studies, Career break, Big purchase (car, gadgets), and Something else, where the person types their own name. Hint: "Pick all that apply. You can add prices later, and it's fine not to know yet." Continue keeps the picks as unpriced goal cards. "Not now" clears the picks and keeps the safety floor and starting split. Either answer logs `start_route` once. With no goals, "Add a goal" reopens the card.
@@ -136,7 +136,7 @@ Put all of this in a pure module (`src/calc/`) with unit tests. Screens call it 
 
 ### Budget route ("Rather set a monthly budget?")
 - `B = budget`. There is no saving, floor, goal or target date, so `A = 0` and no delay is shown.
-- The first month is not prorated, because in the set-up month the question asks for the rest of this month: `B_first = budget`, with the month still treated as starting on the set-up day for the daily number and pace.
+- The first month is prorated exactly as on the pay route: `B_first = budget × days_left_at_start / days_in_month`, with the month treated as starting on the set-up day for the daily number and pace.
 
 ### Daily number
 - `days_left` = days left in the month, including today
@@ -244,7 +244,8 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 - 2026-10-27: The usage log screen (story 15) is reached from the ⋯ menu. It shows events in plain words and exports a plain JSON array of the allowed events.
 - 2026-10-29: Set-up is the starting numbers screen only. "What are you saving up for?" moves to a card on Today, with "Not now" in place of "Not sure yet". `start_route` fires when the card is answered and gains `entry` (`pay`, `budget`).
 - 2026-10-29: Story 21 adds a budget route: one question in place of pay and fixed costs, `B = budget` with no proration, saving, floor or goals, and "Add your pay" to switch to the pay route.
-- 2026-10-29: In the set-up month the budget question asks for "the rest of this month"; later months use the original wording. The budget is not prorated.
+- 2026-10-29: In the set-up month the budget question asks for "the rest of this month"; later months use the original wording. The budget is not prorated. (Replaced by the next entry.)
+- 2026-10-29: The budget question always reads "How much do you want to spend in a month, on top of rent and bills?", and the budget route prorates the first month exactly as the pay route does.
 - 2026-10-29: Fixed costs are only costs that are the same every month, including supporting family. Every spend that varies is logged, and the log screen adds "Use the day you paid."
 - 2026-10-29: Story 22 adds a monthly savings check on the pay routes, with the month-end "most you were on pace to set aside" and days not logged counted outside the caught-up span. Nothing is adjusted automatically.
 - 2026-10-27: Set-up order is starting numbers first, then "What are you saving up for?" with a Back button to the numbers, because the base numbers do not depend on the goals.

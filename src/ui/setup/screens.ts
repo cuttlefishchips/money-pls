@@ -37,13 +37,11 @@ export interface NumbersHandlers {
 
 export interface NumbersOptions {
   mode: 'pay' | 'budget';
-  setUpMonth: boolean;
   back?: string;
   next: string;
 }
 
-export const BUDGET_QUESTION = 'How much do you want to spend this month, on top of rent and bills?';
-export const BUDGET_QUESTION_SET_UP_MONTH = 'How much do you want to spend for the rest of this month, on top of rent and bills?';
+export const BUDGET_QUESTION = 'How much do you want to spend in a month, on top of rent and bills?';
 
 export function numbersScreen(state: AppState, on: NumbersHandlers, options: NumbersOptions): HTMLElement {
   const { payCents, fixedCents } = state.numbers;
@@ -53,7 +51,7 @@ export function numbersScreen(state: AppState, on: NumbersHandlers, options: Num
     h('h1', { tabindex: -1 }, budget ? 'Your monthly budget' : 'Your starting numbers'),
     h('p', { class: 'lead' }, 'So we can work out what you can spend each day. Roughly is fine.'),
     budget
-      ? h('div', { class: 'cards' }, moneyField(options.setUpMonth ? BUDGET_QUESTION_SET_UP_MONTH : BUDGET_QUESTION, undefined, state.budgetCents, on.setBudget))
+      ? h('div', { class: 'cards' }, moneyField(BUDGET_QUESTION, undefined, state.budgetCents, on.setBudget))
       : h(
           'div',
           { class: 'cards' },
