@@ -173,6 +173,7 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
     if (state.step === 'numbers' || view.kind === 'numbers') {
       const editing = view.kind === 'numbers' ? view : null;
       const mode = editing ? editing.mode : state.entry;
+      const setUpMonth = !state.setupDate || (state.setupDate.year === now.year && state.setupDate.month === now.month);
       const done = () => (mode === 'budget' ? state.budgetCents !== null : payDone(state));
       return numbersScreen(
         state,
@@ -192,7 +193,7 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
             else go(mode === 'pay' && state.entry === 'budget' ? switchToPay(state) : state, { kind: 'today' });
           },
         },
-        editing ? { mode, back: 'Cancel', next: 'Save' } : { mode, next: 'Continue' },
+        editing ? { mode, setUpMonth, back: 'Cancel', next: 'Save' } : { mode, setUpMonth, next: 'Continue' },
       );
     }
 
