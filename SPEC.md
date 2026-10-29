@@ -243,7 +243,7 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 - 2026-10-27: When last caught up is 2 or more days ago, "Within this month's budget" is hidden as well as "free to enjoy"; over-budget and used-up still show.
 - 2026-10-27: The usage log screen (story 15) is reached from the ⋯ menu. It shows events in plain words and exports a plain JSON array of the allowed events.
 - 2026-10-29: Set-up is the starting numbers screen only. "What are you saving up for?" moves to a card on Today, with "Not now" in place of "Not sure yet". `start_route` fires when the card is answered and gains `entry` (`pay`, `budget`).
-- 2026-10-29: Story 21 adds a budget route: one question in place of pay and fixed costs, `B = budget` with no proration, saving, floor or goals, and "Add your pay" to switch to the pay route.
+- 2026-10-29: Story 21 adds a budget route: one question in place of pay and fixed costs, `B = budget` with no saving, floor or goals, and "Add your pay" to switch to the pay route.
 - 2026-10-29: In the set-up month the budget question asks for "the rest of this month"; later months use the original wording. The budget is not prorated. (Replaced by the next entry.)
 - 2026-10-29: The budget question always reads "How much do you want to spend in a month, on top of rent and bills?", and the budget route prorates the first month exactly as the pay route does.
 - 2026-10-29: Fixed costs are only costs that are the same every month, including supporting family. Every spend that varies is logged, and the log screen adds "Use the day you paid."
