@@ -62,8 +62,8 @@ export function buildToday({ state, spentCents, today, stale = false }: TodayInp
     goals: state.items.map((item) => ({ id: item.id, name: item.name, priced: false })),
   };
 
-  const withDaily = (base: TodayModel, safeToSpendCents: number, delayItemMonthlyCents: number | null, prorateFirstMonth = true): TodayModel => {
-    const status = dailyStatus({ safeToSpendCents, delayItemMonthlyCents, spentCents, setupDate, today, prorateFirstMonth });
+  const withDaily = (base: TodayModel, safeToSpendCents: number, delayItemMonthlyCents: number | null): TodayModel => {
+    const status = dailyStatus({ safeToSpendCents, delayItemMonthlyCents, spentCents, setupDate, today });
     const hidePace = stale && status.pace !== 'over';
     return {
       ...base,
@@ -81,7 +81,6 @@ export function buildToday({ state, spentCents, today, stale = false }: TodayInp
       { ...empty, mode: 'budget', goals: [], leftCents: budget.safeToSpendCents },
       budget.safeToSpendCents,
       null,
-      budget.prorateFirstMonth,
     );
   }
 

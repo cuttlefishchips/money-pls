@@ -9,7 +9,6 @@ export interface DailyInputs {
   spentCents: number;
   setupDate: CalDate;
   today: CalDate;
-  prorateFirstMonth?: boolean;
 }
 
 export interface DailyStatus {
@@ -29,7 +28,7 @@ export function dailyStatus(inputs: DailyInputs): DailyStatus {
   assertCents('spentCents', spent);
 
   const period = budgetPeriod(inputs.today, inputs.setupDate);
-  const B = period.isFirstMonth && inputs.prorateFirstMonth !== false ? prorateCents(safeToSpendCents, inputs.setupDate) : safeToSpendCents;
+  const B = period.isFirstMonth ? prorateCents(safeToSpendCents, inputs.setupDate) : safeToSpendCents;
 
   const remaining = B - spent;
   const usedUp = remaining <= 0;
