@@ -1,4 +1,4 @@
-import { isValidEvent, type UsageEvent } from './schema';
+import { isValidEvent, upgradeLegacyEvent, type UsageEvent } from './schema';
 
 export function describeEvent(event: UsageEvent): string {
   switch (event.type) {
@@ -12,7 +12,7 @@ export function describeEvent(event: UsageEvent): string {
     case 'budget_viewed':
       return 'Looked at the daily number';
     case 'start_route':
-      return event.route === 'none' ? 'Started not sure yet' : 'Started with goals in mind';
+      return `${event.route === 'none' ? 'Chose not now for goals' : 'Picked what to save for'}, started with ${event.entry === 'budget' ? 'a monthly budget' : 'pay'}`;
     case 'target_decision':
       return { accepted: 'Priced a goal', adjusted: 'Changed a priced goal', rejected: 'Removed a priced goal' }[event.decision];
     case 'target_set_later':
@@ -26,7 +26,7 @@ export interface UsageExport {
 }
 
 export function prepareExport(records: unknown[]): UsageExport {
-  const events = records.filter(isValidEvent).sort((a, b) => a.ts - b.ts);
+  const events = records.map(upgradeLegacyEvent).filter(isValidEvent).sort((a, b) => a.ts - b.ts);
   return { events, skipped: records.length - events.length };
 }
 

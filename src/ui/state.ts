@@ -1,6 +1,7 @@
 import type { CalDate, YearMonth } from '../calc/dates';
 import type { Item } from '../calc/target';
-import type { Route } from '../events';
+import type { Entry, Route } from '../events';
+import { DEFAULT_OWNER } from '../storage';
 
 export const ITEM_CHOICES = [
   { id: 'travel', name: 'Travel' },
@@ -43,15 +44,27 @@ export interface StartingNumbers {
 
 export type NumberField = keyof StartingNumbers;
 
-export type AppStep = 'start' | 'numbers' | 'today';
+export type AppStep = 'numbers' | 'today';
+
+export interface SavingsCheck {
+  owner: string;
+  year: number;
+  month: number;
+  totalCents: number | null;
+}
 
 export interface AppState {
   step: AppStep;
+  entry: Entry;
+  startEntry: Entry;
   route: Route | null;
+  goalsAnswered: boolean;
   items: GoalItem[];
   numbers: StartingNumbers;
+  budgetCents: number | null;
   setupDate: CalDate | null;
   welcomeSeen: boolean;
+  savingsChecks: SavingsCheck[];
 }
 
 export const APP_KEY = 'setup';
@@ -60,11 +73,16 @@ const emptyMonth: PartialMonth = { year: null, month: null };
 
 export const initialState: AppState = {
   step: 'numbers',
+  entry: 'pay',
+  startEntry: 'pay',
   route: null,
+  goalsAnswered: false,
   items: [],
   numbers: { payCents: null, fixedCents: null },
+  budgetCents: null,
   setupDate: null,
   welcomeSeen: false,
+  savingsChecks: [],
 };
 
 export function newItem(id: string, choice: ChoiceId, name: string): GoalItem {
@@ -72,9 +90,9 @@ export function newItem(id: string, choice: ChoiceId, name: string): GoalItem {
 }
 
 const OLD_STEPS: Record<string, AppStep> = {
-  route: 'start',
-  items: 'start',
-  start: 'start',
+  route: 'today',
+  items: 'today',
+  start: 'today',
   prices: 'numbers',
   date: 'numbers',
   numbers: 'numbers',
@@ -87,7 +105,6 @@ export function loadState(saved: unknown, today: CalDate): AppState {
   if (typeof saved !== 'object' || saved === null) return initialState;
   const s = saved as Record<string, unknown> & Partial<AppState>;
   const step = OLD_STEPS[String(s.step)];
-  const route = s.route === 'items' || s.route === 'none' ? s.route : null;
   if (!step || !Array.isArray(s.items)) return initialState;
 
   const items = (s.items as Partial<GoalItem>[])
@@ -97,17 +114,27 @@ export function loadState(saved: unknown, today: CalDate): AppState {
       ...item,
       target: { ...emptyMonth, ...item.target },
     })) as GoalItem[];
+  const entry: Entry = s.entry === 'budget' ? 'budget' : 'pay';
   const numbers = { payCents: s.numbers?.payCents ?? null, fixedCents: s.numbers?.fixedCents ?? null };
-  const numbersDone = numbers.payCents !== null && numbers.fixedCents !== null;
-  const resolvedStep: AppStep = numbersDone ? step : 'numbers';
+  const budgetCents = typeof s.budgetCents === 'number' ? s.budgetCents : null;
+  const done = numbersDone({ ...initialState, entry, numbers, budgetCents });
+  const resolvedStep: AppStep = done ? step : 'numbers';
+  const answeredAtOldSetUp = s.goalsAnswered === undefined && ['result', 'done', 'today'].includes(String(s.step));
+  const goalsAnswered = s.goalsAnswered ?? answeredAtOldSetUp;
+  const route = goalsAnswered && (s.route === 'items' || s.route === 'none') ? s.route : null;
 
   return {
     step: resolvedStep,
+    entry,
+    startEntry: s.startEntry === 'budget' ? 'budget' : 'pay',
     route,
+    goalsAnswered,
     items,
     numbers,
+    budgetCents,
     setupDate: s.setupDate ?? (resolvedStep === 'today' ? today : null),
     welcomeSeen: s.welcomeSeen ?? false,
+    savingsChecks: Array.isArray(s.savingsChecks) ? s.savingsChecks : [],
   };
 }
 
@@ -128,11 +155,37 @@ export function addItem(state: AppState, choice: ChoiceId): AppState {
 
 export function toggleStartItem(state: AppState, choice: ChoiceId): AppState {
   if (isPicked(state, choice)) return { ...state, items: state.items.filter((item) => item.choice !== choice) };
-  return { ...addItem(state, choice), route: 'items' };
+  return addItem(state, choice);
 }
 
-export function chooseNotSure(state: AppState): AppState {
-  return { ...state, route: 'none', items: [] };
+export function answerGoals(state: AppState, answer: Route): AppState {
+  const items = answer === 'none' ? [] : state.items;
+  return { ...state, items, route: state.route ?? answer, goalsAnswered: true };
+}
+
+export function reopenGoals(state: AppState): AppState {
+  return { ...state, goalsAnswered: false };
+}
+
+export function setEntry(state: AppState, entry: Entry): AppState {
+  return { ...state, entry };
+}
+
+export function finishSetUp(state: AppState, today: CalDate): AppState {
+  return { ...state, step: 'today', startEntry: state.entry, setupDate: state.setupDate ?? today };
+}
+
+export function setBudget(state: AppState, cents: number | null): AppState {
+  return { ...state, budgetCents: cents };
+}
+
+export function switchToPay(state: AppState): AppState {
+  return { ...state, entry: 'pay', budgetCents: null };
+}
+
+export function recordSavings(state: AppState, month: YearMonth, totalCents: number | null): AppState {
+  const others = state.savingsChecks.filter((c) => c.year !== month.year || c.month !== month.month);
+  return { ...state, savingsChecks: [...others, { owner: DEFAULT_OWNER, year: month.year, month: month.month, totalCents }] };
 }
 
 export function setStartCustomName(state: AppState, name: string): AppState {
@@ -186,11 +239,15 @@ export function sameItem(a: GoalItem, b: GoalItem): boolean {
 }
 
 export function canStart(state: AppState): boolean {
-  if (state.route === 'none') return true;
   return state.items.length > 0 && state.items.every((item) => item.name.trim() !== '');
 }
 
-export function numbersDone(state: AppState): boolean {
+export function numbersDone(state: Pick<AppState, 'entry' | 'numbers' | 'budgetCents'>): boolean {
+  if (state.entry === 'budget') return state.budgetCents !== null;
+  return state.numbers.payCents !== null && state.numbers.fixedCents !== null;
+}
+
+export function payDone(state: AppState): boolean {
   return state.numbers.payCents !== null && state.numbers.fixedCents !== null;
 }
 

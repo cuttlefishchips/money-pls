@@ -1,9 +1,11 @@
 export const EVENT_VERSION = 1;
 
 export const ROUTES = ['items', 'none'] as const;
+export const ENTRIES = ['pay', 'budget'] as const;
 export const DECISIONS = ['accepted', 'adjusted', 'rejected'] as const;
 
 export type Route = (typeof ROUTES)[number];
+export type Entry = (typeof ENTRIES)[number];
 export type Decision = (typeof DECISIONS)[number];
 
 type NoExtras = Record<never, never>;
@@ -12,7 +14,7 @@ export interface EventExtras {
   session: { duration_s: number };
   spend_logged: NoExtras;
   budget_viewed: NoExtras;
-  start_route: { route: Route };
+  start_route: { route: Route; entry: Entry };
   target_decision: { decision: Decision };
   target_set_later: NoExtras;
 }
@@ -37,7 +39,7 @@ const EXTRA_FIELDS: { [T in EventType]: Record<string, FieldCheck> } = {
   session: { duration_s: isWholeNonNegative },
   spend_logged: {},
   budget_viewed: {},
-  start_route: { route: oneOf(ROUTES) },
+  start_route: { route: oneOf(ROUTES), entry: oneOf(ENTRIES) },
   target_decision: { decision: oneOf(DECISIONS) },
   target_set_later: {},
 };
@@ -61,4 +63,11 @@ export function isValidEvent(record: unknown): record is UsageEvent {
   const keys = Object.keys(r);
   if (keys.length !== allowedKeys.size || keys.some((k) => !allowedKeys.has(k))) return false;
   return Object.entries(extras).every(([key, check]) => check(r[key]));
+}
+
+export function upgradeLegacyEvent(record: unknown): unknown {
+  if (typeof record !== 'object' || record === null || Array.isArray(record)) return record;
+  const r = record as Record<string, unknown>;
+  if (r.type === 'start_route' && !Object.hasOwn(r, 'entry')) return { ...r, entry: 'pay' };
+  return record;
 }

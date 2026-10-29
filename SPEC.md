@@ -30,12 +30,13 @@ Priority: Must = needed for the test to work. Should = add if time allows. Build
 ### Target and plan (set-up)
 | # | As a participant, I want to | Priority |
 |---|---|---|
-| 1 | Enter my take-home pay and fixed costs including everyday essentials, so the tool knows my starting point. | Must |
-| 2 | Pick what I want money for in the next few years and enter a rough price for each, so my target reflects the life I want. | Must |
+| 1 | Enter my take-home pay and the fixed costs that are the same every month, so the tool knows my starting point. | Must |
+| 2 | Pick what I want money for in the next few years from Today, after my starting numbers, and enter a rough price for each, so my target reflects the life I want. | Must |
 | 3 | Merged into story 2. Picking a single item covers starting with one goal. | n/a |
-| 4 | Skip the goal and get a safety floor and starting split, so I can start without deciding what I want yet. | Must |
+| 4 | Answer "Not now" to goals and keep a safety floor and starting split, then come back to it later, so I can start without deciding what I want yet. | Must |
 | 5 | See my target, monthly amount and target date, and adjust them, so the target feels like mine. | Must |
 | 17 | Add a goal later from Today, so I can start before I know everything I want. | Must |
+| 21 | Set a monthly budget instead of entering my pay and fixed costs, so I can start with the number I already think in. | Must |
 
 ### Spending decisions
 | # | Story | Priority |
@@ -47,7 +48,7 @@ Priority: Must = needed for the test to work. Should = add if time allows. Build
 ### Spending log
 | # | Story | Priority |
 |---|---|---|
-| 8 | Log an optional spend, with an optional note, in a few seconds, so my daily number stays accurate. | Must |
+| 8 | Log any spend that varies, with an optional note, in a few seconds, so my daily number stays accurate. | Must |
 | 9 | Edit or delete an entry, so a mistake does not distort my number. | Must |
 | 10 | See when I last caught up on logging, so I know how far to trust my number. | Must |
 | 20 | Catch up on several past spends in one go, so logging after the fact is quick. | Must |
@@ -56,6 +57,7 @@ Priority: Must = needed for the test to work. Should = add if time allows. Build
 | # | Story | Priority |
 |---|---|---|
 | 11 | See whether I am on pace this month and how my target date moves with it, so I know where I stand each week. | Should |
+| 22 | Enter my total savings once a month and see it beside what the plan expected, so I can check the plan against reality. | Must |
 
 ### Money picture
 | # | Story | Priority |
@@ -74,16 +76,18 @@ Priority: Must = needed for the test to work. Should = add if time allows. Build
 ### Not in scope
 Accounts, logins, bank connections, account lists, categories, splitting a spend with others, preset cost ranges, "what if I buy this", spends priced in life terms, reminders or notifications, refinement prompts, guided catch-up, any analytics sent automatically.
 
-## 4. Set-up flow and Today (stories 1 to 10, 13, 16 to 20)
+## 4. Set-up flow and Today (stories 1 to 10, 13, 16 to 22)
 
 On iPhone and iPad, set-up starts only in the installed app, because iOS gives an app added to the home screen its own storage, separate from the browser. Opened in a browser there, the app shows "Add Money Pls to your home screen first" with the Safari steps and the participant code from the link, and stores nothing. The installed app opens without the link's fragment, so the code screen asks "Enter your participant code", with the same rules as the link. Other browsers keep the link flow.
 
-Set-up is two screens, then Today. Goals are priced on Today, one at a time, whenever the person is ready.
+Set-up is one screen, then Today. Goals are picked and priced on Today, whenever the person is ready.
 
-1. **Starting numbers.** Under the heading: "So we can work out what you can spend each day. Roughly is fine." Take-home pay per month and fixed costs per month including everyday essentials (show what counts: rent or mortgage, bills, insurance, groceries, transport, supporting family, other essentials).
-2. **What are you saving up for?** Hint: "Pick all that apply. You can add prices later, and it's fine not to know yet." Multi-select chips, all one-off: Travel, First home (BTO, renovation, moving out), Emergency fund, Wedding, Further studies, Career break, Big purchase (car, gadgets), and Something else, where the person types their own name. A separate "Not sure yet" choice clears the items. A Back button returns to screen 1 with the numbers kept. Continue logs `start_route` and opens Today.
+1. **Starting numbers.** Under the heading: "So we can work out what you can spend each day. Roughly is fine." Take-home pay per month and fixed costs per month. Fixed costs are only costs that are the same amount every month, such as rent or mortgage, bills, insurance and supporting family. The help text says groceries, transport and anything that varies go in the log. A link, "Rather set a monthly budget?", swaps the two questions for one (story 21): "How much do you want to spend for the rest of this month, on top of rent and bills?" in the set-up month, and "How much do you want to spend this month, on top of rent and bills?" when the budget is changed in a later month A link back, "Use my pay and fixed costs instead", returns to the pay questions. Continue opens Today.
 
 Then **Today**, where the app always opens after set-up:
+- **What are you saving up for?** (stories 2 and 4). On the pay route, until it is answered, Today shows a card under the daily number with the same multi-select chips as before: Travel, First home (BTO, renovation, moving out), Emergency fund, Wedding, Further studies, Career break, Big purchase (car, gadgets), and Something else, where the person types their own name. Hint: "Pick all that apply. You can add prices later, and it's fine not to know yet." Continue keeps the picks as unpriced goal cards. "Not now" clears the picks and keeps the safety floor and starting split. Either answer logs `start_route` once. With no goals, "Add a goal" reopens the card.
+- **Budget route** (story 21). Today shows the budget as "Your monthly budget" and the daily number "within your monthly budget", with no set-aside amount, safety floor, goals or target date. In place of the goals, a card says "Add your pay to see how much you're saving". It opens the starting numbers screen, and saving it switches to the pay route and shows the goal card. "Change your monthly budget" replaces "Change pay or fixed costs".
+- **Your monthly check** (story 22). On the pay routes, from the first month after set-up, Today shows a card once a month. It asks "How much do you have saved in total?" (Save, or "Skip this month"), then shows the total beside the plan's expected total: the last entered total plus the monthly set-aside amount for each month since. The first check has no expected total and says it shows from next month. It also shows, for the month just ended, "the most you were on pace to set aside" = `P − F − spends`, labelled as an estimate that depends on complete logs, with the number of days not logged. Nothing is adjusted automatically. Entries are stored on the phone with an `owner`, and no event is logged.
 - The daily number as the headline, with what it is tied to: "keeps you on track for [soonest unfinished goal]" on the target route, or "while you build your safety floor" on the floor route.
 - Set aside and left to spend each month, the pace line, a Log a spend button, and when the number was last updated.
 - The "needs more" card when the priced goals need more than `P − F`, or the "check your numbers" card.
@@ -91,7 +95,7 @@ Then **Today**, where the app always opens after set-up:
 - Until at least one item is priced, Today uses the floor route. Once one is, it uses the target route over the priced items only. Removing every priced item returns to the floor route.
 - When an item is first priced, Today shows "Adding [item] by [month]: S$[new] a day, down from S$[old]". When the daily number does not change because the safety saving already covers the goal, it shows "Adding [item] by [month]: still S$[n] a day, your safety saving already covers it".
 - On the first visit, a one-time card shows the home-screen guide and a link to the rating form (URL configurable, pre-filled with the participant code).
-- **Log a spend** (stories 8 and 20) has one text box, "Amount and note". A simple local rule, with no AI, reads the amount from the start of the text (or the end, if the start is not a number), and the rest is an optional note: "12.50 white beehoon" saves S$12.50 with the note "white beehoon". A preview shows what will be saved. The date is set with chips for Today, Yesterday and Pick a date (up to 31 days back, never in the future). "Save and add another" saves and keeps the chosen date for the next spend. Copy: "Log only your share. Transfers, card bill payments and everyday essentials like transport don't count." Each new spend fires `spend_logged`.
+- **Log a spend** (stories 8 and 20) has one text box, "Amount and note". A simple local rule, with no AI, reads the amount from the start of the text (or the end, if the start is not a number), and the rest is an optional note: "12.50 white beehoon" saves S$12.50 with the note "white beehoon". A preview shows what will be saved. The date is set with chips for Today, Yesterday and Pick a date (up to 31 days back, never in the future). "Save and add another" saves and keeps the chosen date for the next spend. Copy: "Log every spend that varies, like groceries and transport." and "Log only your share. Use the day you paid. Transfers and card bill payments don't count." Each new spend fires `spend_logged`.
 - Notes stay on the phone. They show in this month's spends list and never appear in usage events or exports.
 - "This month's spends" lists this month's spends on Today, newest first, with their notes. Tapping one edits it in the same text box, or deletes it. Edits and deletes update the number but fire no event.
 - **Last caught up** (story 10) is the time of the most recent save, edit or delete of a spend, whatever date the spend is for, or the set-up day before any spend. Today always shows "Last caught up: [day]". When that was 2 or more days ago, Today hides "free to enjoy" and "Within this month's budget" and shows "Based on spends logged up to [day]" under the daily number. Over-budget still shows, because logged spends can only undercount.
@@ -107,11 +111,12 @@ Put all of this in a pure module (`src/calc/`) with unit tests. Screens call it 
 
 ### Inputs
 - `P` take-home pay per month
-- `F` fixed costs per month, including everyday essentials
+- `F` fixed costs per month: only costs that are the same amount every month, including supporting family
 - Items `i`, all one-off, each with a price `price_i`, saved so far `S_i` (0 if blank) and a target date `T_i` (last day of its chosen month)
 - An emergency fund item can use `price_i = 3 × F` in place of a typed price
 - Today `t`
-- `spent` = sum of optional spends logged in the current calendar month
+- `spent` = sum of spends logged in the current calendar month, which are every spend that varies
+- `budget` the monthly budget on the budget route
 
 ### Target route ("I've got things in mind")
 - `n_i` = whole months from the start month to `T_i`, counting the start month and the month of `T_i`, minimum 1. Example: start in October, `T_i` in December, `n_i = 3`.
@@ -129,6 +134,10 @@ Put all of this in a pure module (`src/calc/`) with unit tests. Screens call it 
 - `B = P − F − A`
 - Show the split as needs (`F`), spending (`B`) and saving (`A`), labelled as a starting point to adjust.
 
+### Budget route ("Rather set a monthly budget?")
+- `B = budget`. There is no saving, floor, goal or target date, so `A = 0` and no delay is shown.
+- The first month is not prorated, because in the set-up month the question asks for the rest of this month: `B_first = budget`, with the month still treated as starting on the set-up day for the daily number and pace.
+
 ### Daily number
 - `days_left` = days left in the month, including today
 - `daily = (B − spent) / days_left`
@@ -139,6 +148,13 @@ Put all of this in a pure module (`src/calc/`) with unit tests. Screens call it 
 - Ahead when `spent < even_share − B / days_in_month`. Show "free to enjoy" = `even_share − spent`.
 - Over when `spent > B`. The overspend moves the soonest unfinished item's date: delay in weeks = `(spent − B) / A_i × 4.35` using that item's `A_i`, rounded up to the next whole week. The soonest unfinished item is the one with the earliest `T_i` that still has `A_i > 0` and whose month has not passed, the first listed on a tie. Not shown on the floor route, or when no item is unfinished.
 
+### Monthly check (story 22)
+- Shown on the pay routes from the first month after set-up, once per calendar month.
+- `expected = last_total + A × months`, where `last_total` is the most recent entered total from an earlier month, `months` is the number of months since it (minimum 1), and `A` is the current monthly set-aside amount. Missing when there is no earlier total or no `A` (needs-more or check-numbers).
+- For the month just ended: `most_on_pace = max(0, P − F − spent_last_month)`.
+- `days_not_logged` = days of that month before the set-up day, plus days after the last catch-up (story 10). A day with no spends inside that span counts as logged, because spending nothing is a real answer.
+- Nothing is adjusted automatically.
+
 ### Rounding
 - All amounts are stored and calculated in whole cents.
 - The daily number and "free to enjoy" are rounded down to the cent, so they never overstate what is available.
@@ -148,7 +164,7 @@ Put all of this in a pure module (`src/calc/`) with unit tests. Screens call it 
 - `A_goals > P − F`: if `P − F > 0`, show "Your goals need S$[A_goals] a month and you have S$[P − F]", and let the person move dates or remove items. Otherwise ask them to check their numbers.
 - `S_i ≥ price_i`: show that item as already covered, adding 0 to `A`.
 - `daily ≤ 0`: show that this month's spending is used up, kindly, with the target date effect if any.
-- No entries for some days: show "not logged" for those days, and the time the number was last updated.
+- No entries for some days: show when logging was last caught up, and in the monthly check the number of days not logged. Never estimate the missing spends.
 
 ## 6. Usage events (the only data that can leave the device)
 
@@ -159,7 +175,7 @@ Store in a separate usage log. Every event has `{ v: 1, code, type, ts }` plus o
 | `session` | `duration_s` | when a session ends (page hidden or closed) |
 | `spend_logged` | none | each optional spend saved |
 | `budget_viewed` | none | once per screen visit that shows the daily number or target date, and again when the app returns to the foreground on that screen |
-| `start_route` | `route`: `items`, `none` | once, at set-up screen 2 |
+| `start_route` | `route`: `items`, `none`; `entry`: `pay`, `budget` | once, when the person first answers the goal card on Today. `entry` is how set-up was completed. A person who stays on the budget route never sees the card, so logs no `start_route`. Events logged before `entry` existed are read as `entry: pay` |
 | `target_decision` | `decision`: `accepted`, `adjusted`, `rejected` | `accepted` when an item is first priced, `adjusted` when a priced item is edited, `rejected` when a priced item is removed. Removing an unpriced item logs nothing |
 | `target_set_later` | none | once, when a person who chose "Not sure yet" first prices an item |
 
@@ -226,5 +242,10 @@ Enforce the allowed list in code. The export screen shows the log in plain words
 - 2026-10-27: Logging uses one "Amount and note" text box read by a local rule, date chips (Today, Yesterday, Pick a date) and "Save and add another". Notes stay on the phone. Story 10 becomes "last caught up", with no per-day marks: when it is 2 or more days old, "free to enjoy" is hidden and the number says which day it is based on. Stories 10 and 20 are Must. Stories 17 to 20 are added and story 3 stays merged into story 2.
 - 2026-10-27: When last caught up is 2 or more days ago, "Within this month's budget" is hidden as well as "free to enjoy"; over-budget and used-up still show.
 - 2026-10-27: The usage log screen (story 15) is reached from the ⋯ menu. It shows events in plain words and exports a plain JSON array of the allowed events.
+- 2026-10-29: Set-up is the starting numbers screen only. "What are you saving up for?" moves to a card on Today, with "Not now" in place of "Not sure yet". `start_route` fires when the card is answered and gains `entry` (`pay`, `budget`).
+- 2026-10-29: Story 21 adds a budget route: one question in place of pay and fixed costs, `B = budget` with no proration, saving, floor or goals, and "Add your pay" to switch to the pay route.
+- 2026-10-29: In the set-up month the budget question asks for "the rest of this month"; later months use the original wording. The budget is not prorated.
+- 2026-10-29: Fixed costs are only costs that are the same every month, including supporting family. Every spend that varies is logged, and the log screen adds "Use the day you paid."
+- 2026-10-29: Story 22 adds a monthly savings check on the pay routes, with the month-end "most you were on pace to set aside" and days not logged counted outside the caught-up span. Nothing is adjusted automatically.
 - 2026-10-27: Set-up order is starting numbers first, then "What are you saving up for?" with a Back button to the numbers, because the base numbers do not depend on the goals.
 - 2026-10-27: On iPhone and iPad, set-up starts only in the installed app, and the code screen accepts a typed participant code. Constraint 5 now covers a typed code as well as the link. The usage log screen adds "Copy usage log".

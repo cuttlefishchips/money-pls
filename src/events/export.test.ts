@@ -11,8 +11,8 @@ describe('describeEvent', () => {
     [{ ...base, type: 'session', duration_s: 20 }, 'Opened the app, less than a minute'],
     [{ ...base, type: 'spend_logged' }, 'Logged a spend'],
     [{ ...base, type: 'budget_viewed' }, 'Looked at the daily number'],
-    [{ ...base, type: 'start_route', route: 'items' }, 'Started with goals in mind'],
-    [{ ...base, type: 'start_route', route: 'none' }, 'Started not sure yet'],
+    [{ ...base, type: 'start_route', route: 'items', entry: 'pay' }, 'Picked what to save for, started with pay'],
+    [{ ...base, type: 'start_route', route: 'none', entry: 'budget' }, 'Chose not now for goals, started with a monthly budget'],
     [{ ...base, type: 'target_decision', decision: 'accepted' }, 'Priced a goal'],
     [{ ...base, type: 'target_decision', decision: 'adjusted' }, 'Changed a priced goal'],
     [{ ...base, type: 'target_decision', decision: 'rejected' }, 'Removed a priced goal'],
@@ -41,6 +41,12 @@ describe('prepareExport', () => {
     const prepared = prepareExport(records);
     expect(prepared.events.map((e) => e.ts)).toEqual([1, 3]);
     expect(prepared.skipped).toBe(2);
+  });
+
+  it('upgrades a start_route logged before entry existed to entry pay, the only entry then', () => {
+    const prepared = prepareExport([{ ...base, type: 'start_route', route: 'none' }]);
+    expect(prepared.events).toEqual([{ ...base, type: 'start_route', route: 'none', entry: 'pay' }]);
+    expect(prepared.skipped).toBe(0);
   });
 
   it('exports no amounts or notes even if one was stored by mistake', () => {
