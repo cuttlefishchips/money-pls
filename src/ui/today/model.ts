@@ -1,5 +1,6 @@
+import { planBudget } from '../../calc/budget';
 import { dailyStatus } from '../../calc/daily';
-import type { CalDate } from '../../calc/dates';
+import type { CalDate, YearMonth } from '../../calc/dates';
 import { planFloor } from '../../calc/floor';
 import { planTarget, soonestUnfinished, type ItemPlan } from '../../calc/target';
 import { FUND_CHOICE, toCalcItem, type AppState } from '../state';
@@ -9,7 +10,7 @@ export type GoalView =
   | { id: string; name: string; priced: true; plan: ItemPlan; usesFixedCosts: boolean };
 
 export interface TodayModel {
-  mode: 'floor' | 'target';
+  mode: 'floor' | 'target' | 'budget';
   status: 'ok' | 'needs-more' | 'check-numbers';
   dailyCents: number | null;
   usedUp: boolean;
@@ -61,8 +62,8 @@ export function buildToday({ state, spentCents, today, stale = false }: TodayInp
     goals: state.items.map((item) => ({ id: item.id, name: item.name, priced: false })),
   };
 
-  const withDaily = (base: TodayModel, safeToSpendCents: number, delayItemMonthlyCents: number | null): TodayModel => {
-    const status = dailyStatus({ safeToSpendCents, delayItemMonthlyCents, spentCents, setupDate, today });
+  const withDaily = (base: TodayModel, safeToSpendCents: number, delayItemMonthlyCents: number | null, prorateFirstMonth = true): TodayModel => {
+    const status = dailyStatus({ safeToSpendCents, delayItemMonthlyCents, spentCents, setupDate, today, prorateFirstMonth });
     const hidePace = stale && status.pace !== 'over';
     return {
       ...base,
@@ -73,6 +74,16 @@ export function buildToday({ state, spentCents, today, stale = false }: TodayInp
       delayWeeks: status.delayWeeks,
     };
   };
+
+  if (state.entry === 'budget') {
+    const budget = planBudget(state.budgetCents ?? 0);
+    return withDaily(
+      { ...empty, mode: 'budget', goals: [], leftCents: budget.safeToSpendCents },
+      budget.safeToSpendCents,
+      null,
+      budget.prorateFirstMonth,
+    );
+  }
 
   if (!priced.length) {
     const floor = planFloor({ payCents, fixedCents });
@@ -115,7 +126,7 @@ export function buildToday({ state, spentCents, today, stale = false }: TodayInp
   );
 }
 
-export function spentThisMonth(spends: { date: string; amountCents: number }[], today: CalDate): number {
+export function spentThisMonth(spends: { date: string; amountCents: number }[], today: YearMonth): number {
   const prefix = `${today.year}-${String(today.month).padStart(2, '0')}-`;
   return spends.filter((s) => s.date.startsWith(prefix)).reduce((total, s) => total + s.amountCents, 0);
 }

@@ -4,6 +4,7 @@ import { actions, button, h, screen } from '../dom';
 import { chip, monthLabel, monthPicker, moneyField, textField } from '../fields';
 import { CUSTOM, FUND_CHOICE, isPicked, ITEM_CHOICES, ITEM_NAME_MAX, type AppState, type ChoiceId, type GoalItem, type PartialMonth } from '../state';
 import type { Spend } from '../../storage';
+import type { MonthlyCheck } from './check';
 import type { GoalView, TodayModel } from './model';
 
 export interface TodayView {
@@ -12,6 +13,8 @@ export interface TodayView {
   caughtUp: { label: string; stale: boolean };
   spends: { spend: Spend; label: string }[];
   menuOpen: boolean;
+  goalsCard: HTMLElement | null;
+  check: { check: MonthlyCheck; showResult: boolean; draftCents: number | null } | null;
 }
 
 export interface TodayHandlers {
@@ -24,6 +27,11 @@ export interface TodayHandlers {
   toggleMenu(): void;
   startOver(): void;
   openUsage(): void;
+  addPay(): void;
+  setCheckTotal(text: string): void;
+  saveCheck(): void;
+  skipCheck(): void;
+  closeCheck(): void;
 }
 
 const CHECK_NUMBERS =
@@ -51,7 +59,9 @@ export function todayScreen(model: TodayModel, view: TodayView, on: TodayHandler
     view.menuOpen && h('div', { class: 'card menu', id: 'today-menu' }, button('Your usage log', on.openUsage), button('Start over', on.startOver)),
     view.notice && h('div', { class: 'card notice', role: 'status' }, h('p', {}, view.notice)),
     view.welcome && welcomeCard(view.welcome, on),
+    view.check && checkCard(view.check, on),
     dailyCard(model, view, on),
+    goalsPrompt(model, view, on),
     model.status === 'needs-more' &&
       h(
         'div',
@@ -64,6 +74,32 @@ export function todayScreen(model: TodayModel, view: TodayView, on: TodayHandler
     view.spends.length
       ? h('div', { class: 'spend-list' }, ...view.spends.map(({ spend, label }) => spendRow(spend, label, on)))
       : h('p', { class: 'goal-meta' }, 'Nothing logged this month yet.'),
+    goalsSection(model, view, on),
+    h(
+      'button',
+      { type: 'button', class: 'text-button', onClick: on.changeNumbers },
+      model.mode === 'budget' ? 'Change your monthly budget' : 'Change pay or fixed costs',
+    ),
+  );
+}
+
+function goalsPrompt(model: TodayModel, view: TodayView, on: TodayHandlers): HTMLElement | null {
+  if (model.mode === 'budget') {
+    return h(
+      'button',
+      { type: 'button', class: 'card goal goal-button', onClick: on.addPay },
+      h('span', { class: 'goal-name' }, "Add your pay to see how much you're saving"),
+      h('span', { class: 'goal-meta' }, 'Then pick what you are saving up for, if you like.'),
+    );
+  }
+  return view.goalsCard;
+}
+
+function goalsSection(model: TodayModel, view: TodayView, on: TodayHandlers): HTMLElement | null {
+  if (model.mode === 'budget' || view.goalsCard) return null;
+  return h(
+    'section',
+    {},
     h('h2', { class: 'section-title' }, 'Your goals'),
     model.goals.length
       ? h('div', { class: 'cards' }, ...model.goals.map((goal) => goalCard(goal, on)))
@@ -77,7 +113,59 @@ export function todayScreen(model: TodayModel, view: TodayView, on: TodayHandler
         h('p', { class: 'goal-name' }, 'Safety floor'),
         h('p', { class: 'goal-meta' }, `About ${formatSGD(model.floorCents, 'up')}, 3 months of your fixed costs.`),
       ),
-    h('button', { type: 'button', class: 'text-button', onClick: on.changeNumbers }, 'Change pay or fixed costs'),
+  );
+}
+
+function checkCard({ check, showResult, draftCents }: NonNullable<TodayView['check']>, on: TodayHandlers): HTMLElement {
+  const days = check.daysNotLogged;
+  const logNote =
+    days === 0 ? 'Every day was logged.' : `${days} ${days === 1 ? "day wasn't" : "days weren't"} logged, so the real amount may be lower.`;
+  return h(
+    'section',
+    { class: 'card', 'aria-labelledby': 'check-title' },
+    h('h2', { id: 'check-title', class: 'card-heading' }, 'Your monthly check'),
+    check.mostOnPaceCents !== null &&
+      h('p', {}, `In ${monthLabel(check.lastMonth)}, the most you were on pace to set aside was about ${formatSGD(check.mostOnPaceCents, 'down')}.`),
+    check.mostOnPaceCents !== null &&
+      h('p', { class: 'goal-meta' }, `An estimate from pay, fixed costs and logged spends, so it depends on complete logs. ${logNote}`),
+    showResult ? checkResult(check, on) : checkQuestion(draftCents, on),
+  );
+}
+
+function checkQuestion(draftCents: number | null, on: TodayHandlers): HTMLElement {
+  return h(
+    'div',
+    { class: 'cards' },
+    moneyField('How much do you have saved in total?', 'Across all your savings. Roughly is fine.', draftCents, on.setCheckTotal),
+    h(
+      'div',
+      { class: 'card-actions check-actions' },
+      button('Skip this month', on.skipCheck),
+      button('Save', on.saveCheck, 'secondary', draftCents === null),
+    ),
+  );
+}
+
+function checkResult(check: MonthlyCheck, on: TodayHandlers): HTMLElement {
+  return h(
+    'div',
+    { class: 'cards' },
+    h(
+      'dl',
+      { class: 'rows' },
+      h('dt', {}, 'Your savings now'),
+      h('dd', {}, check.enteredCents === null ? 'Not entered' : formatSGD(check.enteredCents)),
+      h('dt', {}, "The plan's expected total"),
+      h('dd', {}, check.expectedCents === null ? 'Not set yet' : `about ${formatSGD(check.expectedCents, 'up')}`),
+    ),
+    h(
+      'p',
+      { class: 'goal-meta' },
+      check.expectedCents === null
+        ? 'The expected total shows from next month, once there is a total to start from.'
+        : `Your last total of ${formatSGD(check.lastTotalCents ?? 0)} plus this month's set-aside amount. Nothing changes automatically. You decide what, if anything, to adjust.`,
+    ),
+    h('div', { class: 'card-actions' }, button('Done', on.closeCheck)),
   );
 }
 
@@ -85,7 +173,9 @@ function dailyCard(model: TodayModel, view: TodayView, on: TodayHandlers): HTMLE
   const ok = model.status === 'ok' && model.dailyCents !== null;
   const tiedTo = model.tiedTo
     ? `a day, keeps you on track for ${model.tiedTo}`
-    : model.mode === 'floor'
+    : model.mode === 'budget'
+      ? 'a day, within your monthly budget'
+      : model.mode === 'floor'
       ? 'a day, while you build your safety floor'
       : 'a day, keeps your goals on track';
 
@@ -97,14 +187,16 @@ function dailyCard(model: TodayModel, view: TodayView, on: TodayHandlers): HTMLE
     ok && h('p', { class: 'daily-label' }, tiedTo),
     ok && view.caughtUp.stale && h('p', { class: 'stale-note' }, `Based on spends logged up to ${view.caughtUp.label}`),
     ok &&
-      h(
-        'dl',
-        { class: 'rows' },
-        h('dt', {}, 'Set aside each month'),
-        h('dd', {}, `about ${formatSGD(model.setAsideCents ?? 0, 'up')}`),
-        h('dt', {}, 'Left to spend each month'),
-        h('dd', {}, `about ${formatSGD(model.leftCents ?? 0, 'down')}`),
-      ),
+      (model.mode === 'budget'
+        ? h('dl', { class: 'rows' }, h('dt', {}, 'Your monthly budget'), h('dd', {}, formatSGD(model.leftCents ?? 0)))
+        : h(
+            'dl',
+            { class: 'rows' },
+            h('dt', {}, 'Set aside each month'),
+            h('dd', {}, `about ${formatSGD(model.setAsideCents ?? 0, 'up')}`),
+            h('dt', {}, 'Left to spend each month'),
+            h('dd', {}, `about ${formatSGD(model.leftCents ?? 0, 'down')}`),
+          )),
     ok && paceLine(model),
     h('div', { class: 'actions-inline' }, button('Log a spend', on.logSpend, 'primary')),
     h('p', { class: 'goal-meta' }, `Last caught up: ${view.caughtUp.label}`),

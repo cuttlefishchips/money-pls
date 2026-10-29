@@ -150,3 +150,27 @@ describe('spentThisMonth', () => {
     expect(spentThisMonth(spends, today)).toBe(750);
   });
 });
+
+describe('buildToday on the budget route', () => {
+  const budgetState: AppState = { ...initialState, entry: 'budget', budgetCents: 110_000, step: 'today', setupDate };
+
+  it('uses the whole budget as safe-to-spend, with no saving, floor or goals', () => {
+    const model = buildToday({ state: budgetState, spentCents: 10_000, today });
+    expect(model).toMatchObject({
+      mode: 'budget',
+      status: 'ok',
+      leftCents: 110_000,
+      setAsideCents: null,
+      floorCents: null,
+      tiedTo: null,
+      dailyCents: 9_090,
+      delayWeeks: null,
+      goals: [],
+    });
+  });
+
+  it('ignores goals picked before switching to a budget', () => {
+    const state = priced({ ...addItem(budgetState, 'travel') }, 'travel', 100_000, 2027, 1);
+    expect(buildToday({ state, spentCents: 0, today })).toMatchObject({ mode: 'budget', goals: [] });
+  });
+});

@@ -7,10 +7,10 @@ describe('createUsageLogger', () => {
     const store = createMemoryStore();
     const logger = createUsageLogger(store, 'P3', () => 1000);
     await logger.log('spend_logged');
-    await logger.log('start_route', { route: 'items' });
+    await logger.log('start_route', { route: 'items', entry: 'pay' });
     expect(await store.listUsage()).toEqual([
       { v: 1, code: 'P3', type: 'spend_logged', ts: 1000 },
-      { v: 1, code: 'P3', type: 'start_route', route: 'items', ts: 1000 },
+      { v: 1, code: 'P3', type: 'start_route', route: 'items', entry: 'pay', ts: 1000 },
     ]);
   });
 
@@ -39,8 +39,8 @@ describe('createUsageLogger', () => {
   it('logs a once-only event a single time', async () => {
     const store = createMemoryStore();
     const logger = createUsageLogger(store, 'P3');
-    await logger.logOnce('start_route', { route: 'items' });
-    await logger.logOnce('start_route', { route: 'none' });
+    await logger.logOnce('start_route', { route: 'items', entry: 'pay' });
+    await logger.logOnce('start_route', { route: 'none', entry: 'budget' });
     expect((await store.listUsage()).map((e) => e.route)).toEqual(['items']);
   });
 });
@@ -53,8 +53,10 @@ describe('UsageLogger types', () => {
       void logger.log('spend_logged', { amountCents: 500 });
       // @ts-expect-error start_route needs a route
       void logger.log('start_route');
+      // @ts-expect-error start_route needs an entry
+      void logger.log('start_route', { route: 'items' });
       // @ts-expect-error only the listed routes are allowed
-      void logger.log('start_route', { route: 'other' });
+      void logger.log('start_route', { route: 'other', entry: 'pay' });
       // @ts-expect-error unknown event types are not allowed
       void logger.log('screen_viewed');
     };

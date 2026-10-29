@@ -30,7 +30,8 @@ export function spendScreen(view: SpendScreenView, on: SpendHandlers): HTMLEleme
 
   return screen(
     h('h1', { tabindex: -1 }, isNew ? 'Log a spend' : 'Edit spend'),
-    h('p', { class: 'lead' }, "Log only your share. Transfers, card bill payments and everyday essentials like transport don't count."),
+    h('p', { class: 'lead' }, 'Log every spend that varies, like groceries and transport.'),
+    h('p', { class: 'goal-meta' }, "Log only your share. Use the day you paid. Transfers and card bill payments don't count."),
     view.savedMessage && h('div', { class: 'card notice', role: 'status' }, h('p', {}, view.savedMessage)),
     h(
       'div',

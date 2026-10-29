@@ -590,3 +590,16 @@ select.text-input {
   font-weight: 500;
   letter-spacing: 0.08em;
 }
+
+.card-heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.goals-actions,
+.check-actions {
+  gap: 8px;
+}

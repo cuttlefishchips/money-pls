@@ -7,29 +7,36 @@ import { copyText, saveTextFile } from './save-file';
 import { usageScreen } from './usage-screen';
 import type { Spend, Store } from '../storage';
 import { monthLabel } from './fields';
-import { numbersScreen, startScreen } from './setup/screens';
+import { goalsCard, numbersScreen } from './setup/screens';
 import {
   addItem,
+  answerGoals,
   APP_KEY,
   canSaveItem,
-  chooseNotSure,
+  canStart,
   editItem,
+  finishSetUp,
   initialState,
   isPriced,
   itemMonth,
   loadState,
-  numbersDone,
+  payDone,
+  recordSavings,
   removeItem,
+  reopenGoals,
   replaceItem,
   sameItem,
   setItemTarget,
+  setBudget,
+  setEntry,
   setNumber,
   setStartCustomName,
+  switchToPay,
   toggleStartItem,
   type AppState,
   type GoalItem,
-  type StartingNumbers,
 } from './state';
+import { buildMonthlyCheck } from './today/check';
 import { buildToday, spentThisMonth } from './today/model';
 import { addGoalScreen, editGoalScreen, startOverScreen, todayScreen } from './today/screen';
 import { startOver } from './start-over';
@@ -64,7 +71,7 @@ type View =
   | { kind: 'today' }
   | { kind: 'edit'; draft: GoalItem }
   | { kind: 'add' }
-  | { kind: 'numbers'; before: StartingNumbers }
+  | { kind: 'numbers'; before: AppState; mode: 'pay' | 'budget' }
   | { kind: 'start-over' }
   | { kind: 'spend'; draft: SpendDraft; savedMessage: string | null }
   | { kind: 'usage'; events: UsageEvent[]; skipped: number; savedNote: string | null };
@@ -104,6 +111,8 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
   let notice: string | null = null;
   let showWelcome = false;
   let menuOpen = false;
+  let checkDraft: number | null = null;
+  let checkResultShown = false;
 
   const caughtUp = () => caughtUpDate(spendsChangedAt, state.setupDate, today());
   const model = (s: AppState) =>
@@ -161,35 +170,29 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
 
   function view_(): HTMLElement {
     const now = today();
-    if (state.step === 'start') {
-      return startScreen(state, {
-        toggleItem: (choice) => go(toggleStartItem(state, choice), view, false),
-        chooseNotSure: () => go(chooseNotSure(state), view, false),
-        setCustomName: (name) => {
-          save(setStartCustomName(state, name));
-          refreshPrimary(state.items.every((item) => item.name.trim() !== ''));
-        },
-        back: () => go({ ...state, step: 'numbers' }),
-        next: () => {
-          void logger.logOnce('start_route', { route: state.route === 'none' ? 'none' : 'items' });
-          go({ ...state, step: 'today', setupDate: state.setupDate ?? now }, { kind: 'today' });
-        },
-      });
-    }
-
     if (state.step === 'numbers' || view.kind === 'numbers') {
       const editing = view.kind === 'numbers' ? view : null;
+      const mode = editing ? editing.mode : state.entry;
+      const done = () => (mode === 'budget' ? state.budgetCents !== null : payDone(state));
       return numbersScreen(
         state,
         {
           setNumber: (field, text) => {
             save(setNumber(state, field, parseDollars(text)));
-            refreshPrimary(numbersDone(state));
+            refreshPrimary(done());
           },
-          back: () => editing && go({ ...state, numbers: editing.before }, { kind: 'today' }),
-          next: () => (editing ? go(state, { kind: 'today' }) : go({ ...state, step: 'start' })),
+          setBudget: (text) => {
+            save(setBudget(state, parseDollars(text)));
+            refreshPrimary(done());
+          },
+          switchEntry: editing ? undefined : () => go(setEntry(state, state.entry === 'pay' ? 'budget' : 'pay')),
+          back: () => editing && go(editing.before, { kind: 'today' }),
+          next: () => {
+            if (!editing) go(finishSetUp(state, now), { kind: 'today' });
+            else go(mode === 'pay' && state.entry === 'budget' ? switchToPay(state) : state, { kind: 'today' });
+          },
         },
-        editing ? { back: 'Cancel', next: 'Save' } : undefined,
+        editing ? { mode, back: 'Cancel', next: 'Save' } : { mode, next: 'Continue' },
       );
     }
 
@@ -324,6 +327,7 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
           spendsChangedAt = null;
           notice = null;
           showWelcome = false;
+          checkResultShown = false;
           state = initialState;
           go(initialState, { kind: 'today' });
         },
@@ -344,8 +348,34 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
       showWelcome = true;
       save({ ...state, welcomeSeen: true });
     }
+    const current = model(state);
+    const answerCard = (answer: 'items' | 'none') => {
+      void logger.logOnce('start_route', { route: answer, entry: state.startEntry });
+      go(answerGoals(state, answer), view);
+    };
+    const card =
+      state.entry === 'pay' && !state.goalsAnswered
+        ? goalsCard(state, {
+            toggleItem: (choice) => go(toggleStartItem(state, choice), view, false),
+            setCustomName: (name) => {
+              save(setStartCustomName(state, name));
+              const next = root.querySelector<HTMLButtonElement>('.goals-actions button:last-child');
+              if (next) next.disabled = !canStart(state);
+            },
+            notNow: () => answerCard('none'),
+            next: () => answerCard('items'),
+          })
+        : null;
+    const check = buildMonthlyCheck({
+      state,
+      spends,
+      monthlySavingCents: current.status === 'ok' ? current.setAsideCents : null,
+      caughtUp: caughtUp(),
+      today: now,
+    });
+    const showCheck = check && (!check.answered || checkResultShown) ? { check, showResult: check.answered, draftCents: checkDraft } : null;
     return todayScreen(
-      model(state),
+      current,
       {
         notice,
         welcome: showWelcome ? { ratingUrl: ratingFormUrl(code), installed: currentPlatform().standalone } : null,
@@ -356,13 +386,34 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
           return { spend, label: label.charAt(0).toUpperCase() + label.slice(1) };
         }),
         menuOpen,
+        goalsCard: card,
+        check: showCheck,
       },
       {
         openGoal: (id) => {
           const item = state.items.find((i) => i.id === id);
           if (item) go(state, { kind: 'edit', draft: item });
         },
-        addGoal: () => go(state, { kind: 'add' }),
+        addGoal: () => (state.items.length ? go(state, { kind: 'add' }) : go(reopenGoals(state))),
+        addPay: () => go(state, { kind: 'numbers', before: state, mode: 'pay' }),
+        setCheckTotal: (text) => {
+          checkDraft = parseDollars(text);
+          const saveButton = root.querySelector<HTMLButtonElement>('.check-actions button:last-child');
+          if (saveButton) saveButton.disabled = checkDraft === null;
+        },
+        saveCheck: () => {
+          if (!check || checkDraft === null) return;
+          checkResultShown = true;
+          go(recordSavings(state, check.month, checkDraft), view, false);
+          checkDraft = null;
+        },
+        skipCheck: () => {
+          if (check) go(recordSavings(state, check.month, null), view, false);
+        },
+        closeCheck: () => {
+          checkResultShown = false;
+          render(false);
+        },
         logSpend: () => go(state, { kind: 'spend', draft: newSpendDraft(today()), savedMessage: null }),
         openSpend: (id) => {
           const spend = spends.find((s) => s.id === id);
@@ -372,7 +423,7 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
           showWelcome = false;
           render(false);
         },
-        changeNumbers: () => go(state, { kind: 'numbers', before: state.numbers }),
+        changeNumbers: () => go(state, { kind: 'numbers', before: state, mode: state.entry }),
         toggleMenu: () => {
           menuOpen = !menuOpen;
           render(false);

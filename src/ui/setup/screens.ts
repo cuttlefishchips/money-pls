@@ -1,20 +1,21 @@
 import { actions, button, h, screen } from '../dom';
 import { chip, moneyField, textField } from '../fields';
-import { canStart, CUSTOM, isPicked, ITEM_CHOICES, ITEM_NAME_MAX, numbersDone, type AppState, type ChoiceId, type NumberField } from '../state';
+import { canStart, CUSTOM, isPicked, ITEM_CHOICES, ITEM_NAME_MAX, payDone, type AppState, type ChoiceId, type NumberField } from '../state';
 
-export interface StartHandlers {
+export interface GoalsHandlers {
   toggleItem(choice: ChoiceId): void;
-  chooseNotSure(): void;
   setCustomName(name: string): void;
-  back(): void;
+  notNow(): void;
   next(): void;
 }
 
-export function startScreen(state: AppState, on: StartHandlers): HTMLElement {
+export function goalsCard(state: AppState, on: GoalsHandlers): HTMLElement {
   const customName = state.items.find((item) => item.choice === CUSTOM)?.name ?? '';
-  return screen(
-    h('h1', { id: 'items-question', tabindex: -1 }, 'What are you saving up for?'),
-    h('p', { class: 'lead' }, "Pick all that apply. You can add prices later, and it's fine not to know yet."),
+  return h(
+    'section',
+    { class: 'card goals-card', 'aria-labelledby': 'items-question' },
+    h('h2', { id: 'items-question', class: 'card-heading' }, 'What are you saving up for?'),
+    h('p', { class: 'goal-meta' }, "Pick all that apply. You can add prices later, and it's fine not to know yet."),
     h(
       'div',
       { class: 'chips', role: 'group', 'aria-labelledby': 'items-question' },
@@ -22,33 +23,52 @@ export function startScreen(state: AppState, on: StartHandlers): HTMLElement {
       chip('Something else', undefined, isPicked(state, CUSTOM), () => on.toggleItem(CUSTOM)),
     ),
     isPicked(state, CUSTOM) && textField('What is it?', customName, ITEM_NAME_MAX, on.setCustomName),
-    h('div', { class: 'chips chips-apart' }, chip('Not sure yet', undefined, state.route === 'none', on.chooseNotSure)),
-    actions(button('Back', on.back), button('Continue', on.next, 'primary', !canStart(state))),
+    h('div', { class: 'card-actions goals-actions' }, button('Not now', on.notNow), button('Continue', on.next, 'secondary', !canStart(state))),
   );
 }
 
 export interface NumbersHandlers {
   setNumber(field: NumberField, text: string): void;
+  setBudget(text: string): void;
+  switchEntry?(): void;
   back(): void;
   next(): void;
 }
 
-export function numbersScreen(state: AppState, on: NumbersHandlers, labels: { back?: string; next: string } = { next: 'Continue' }): HTMLElement {
+export interface NumbersOptions {
+  mode: 'pay' | 'budget';
+  back?: string;
+  next: string;
+}
+
+export const BUDGET_QUESTION = 'How much do you want to spend this month, on top of rent and bills?';
+
+export function numbersScreen(state: AppState, on: NumbersHandlers, options: NumbersOptions): HTMLElement {
   const { payCents, fixedCents } = state.numbers;
+  const budget = options.mode === 'budget';
+  const done = budget ? state.budgetCents !== null : payDone(state);
   return screen(
-    h('h1', { tabindex: -1 }, 'Your starting numbers'),
+    h('h1', { tabindex: -1 }, budget ? 'Your monthly budget' : 'Your starting numbers'),
     h('p', { class: 'lead' }, 'So we can work out what you can spend each day. Roughly is fine.'),
-    h(
-      'div',
-      { class: 'cards' },
-      moneyField('Take-home pay per month', undefined, payCents, (text) => on.setNumber('payCents', text)),
-      moneyField(
-        'Fixed costs per month',
-        'Rent or mortgage, bills, insurance, groceries, transport, supporting family, other essentials.',
-        fixedCents,
-        (text) => on.setNumber('fixedCents', text),
+    budget
+      ? h('div', { class: 'cards' }, moneyField(BUDGET_QUESTION, undefined, state.budgetCents, on.setBudget))
+      : h(
+          'div',
+          { class: 'cards' },
+          moneyField('Take-home pay per month', undefined, payCents, (text) => on.setNumber('payCents', text)),
+          moneyField(
+            'Fixed costs per month',
+            'Only costs that are the same every month, like rent or mortgage, bills, insurance and supporting family. Groceries, transport and anything that varies go in your log.',
+            fixedCents,
+            (text) => on.setNumber('fixedCents', text),
+          ),
+        ),
+    on.switchEntry &&
+      h(
+        'button',
+        { type: 'button', class: 'text-button', onClick: on.switchEntry },
+        budget ? 'Use my pay and fixed costs instead' : 'Rather set a monthly budget?',
       ),
-    ),
-    actions(labels.back !== undefined && button(labels.back, on.back), button(labels.next, on.next, 'primary', !numbersDone(state))),
+    actions(options.back !== undefined && button(options.back, on.back), button(options.next, on.next, 'primary', !done)),
   );
 }

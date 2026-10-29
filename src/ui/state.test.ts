@@ -3,7 +3,8 @@ import {
   addItem,
   canSaveItem,
   canStart,
-  chooseNotSure,
+  answerGoals,
+  finishSetUp,
   CUSTOM,
   editItem,
   initialState,
@@ -14,6 +15,11 @@ import {
   loadState,
   nextCustomId,
   numbersDone,
+  recordSavings,
+  reopenGoals,
+  setBudget,
+  setEntry,
+  switchToPay,
   removeItem,
   replaceItem,
   sameItem,
@@ -41,17 +47,27 @@ describe('item choices', () => {
   });
 });
 
-describe('set-up screen 1', () => {
-  it('needs items or not sure yet before continuing', () => {
+describe('goal card on Today', () => {
+  it('needs at least one named item to continue', () => {
     expect(canStart(initialState)).toBe(false);
     expect(canStart(toggleStartItem(initialState, 'travel'))).toBe(true);
-    expect(canStart(chooseNotSure(initialState))).toBe(true);
   });
 
-  it('makes items and not sure yet exclusive', () => {
-    const notSure = chooseNotSure(toggleStartItem(initialState, 'travel'));
-    expect(notSure).toMatchObject({ route: 'none', items: [] });
-    expect(toggleStartItem(notSure, 'wedding')).toMatchObject({ route: 'items', items: [{ id: 'wedding' }] });
+  it('records the answer only when the card is answered', () => {
+    const picked = toggleStartItem(initialState, 'travel');
+    expect(picked).toMatchObject({ route: null, goalsAnswered: false });
+    expect(answerGoals(picked, 'items')).toMatchObject({ route: 'items', goalsAnswered: true, items: [{ id: 'travel' }] });
+  });
+
+  it('clears unconfirmed picks on not now and keeps the floor route', () => {
+    expect(answerGoals(toggleStartItem(initialState, 'travel'), 'none')).toMatchObject({ route: 'none', goalsAnswered: true, items: [] });
+  });
+
+  it('can be reopened, keeping the first answer as the route', () => {
+    const notNow = answerGoals(initialState, 'none');
+    const reopened = toggleStartItem(reopenGoals(notNow), 'wedding');
+    expect(reopened.goalsAnswered).toBe(false);
+    expect(answerGoals(reopened, 'items')).toMatchObject({ route: 'none', items: [{ id: 'wedding' }] });
   });
 
   it('removes an item when it is tapped again', () => {
@@ -147,6 +163,34 @@ describe('starting numbers', () => {
     expect(numbersDone(setNumber(initialState, 'payCents', 1))).toBe(false);
     expect(numbersDone(setNumber(setNumber(initialState, 'payCents', 1), 'fixedCents', 0))).toBe(true);
   });
+
+  it('needs only the budget on the budget route', () => {
+    const budget = setEntry(initialState, 'budget');
+    expect(numbersDone(budget)).toBe(false);
+    expect(numbersDone(setBudget(budget, 0))).toBe(true);
+  });
+
+  it('goes straight to Today and remembers how the person started', () => {
+    const done = finishSetUp(setBudget(setEntry(initialState, 'budget'), 100_000), today);
+    expect(done).toMatchObject({ step: 'today', entry: 'budget', startEntry: 'budget', setupDate: today, goalsAnswered: false });
+  });
+
+  it('switches a budget person to pay, keeping how they started', () => {
+    const budget = finishSetUp(setBudget(setEntry(initialState, 'budget'), 100_000), today);
+    expect(switchToPay(budget)).toMatchObject({ entry: 'pay', startEntry: 'budget', budgetCents: null });
+  });
+});
+
+describe('savings checks', () => {
+  it('keeps one entry per month, owned by me', () => {
+    const once = recordSavings(initialState, now, 500_000);
+    const again = recordSavings(once, now, 600_000);
+    expect(again.savingsChecks).toEqual([{ owner: 'me', year: 2026, month: 10, totalCents: 600_000 }]);
+  });
+
+  it('records a skipped month as no total', () => {
+    expect(recordSavings(initialState, now, null).savingsChecks[0]?.totalCents).toBeNull();
+  });
 });
 
 describe('loadState', () => {
@@ -160,17 +204,27 @@ describe('loadState', () => {
   });
 
   it('resumes saved state', () => {
-    const saved = { ...setNumber(setNumber(toggleStartItem(initialState, 'travel'), 'payCents', 1), 'fixedCents', 0), step: 'start' as const };
-    expect(loadState(saved, today)).toEqual(saved);
+    const saved = recordSavings(answerGoals(finishSetUp(setBudget(setEntry(initialState, 'budget'), 1), today), 'items'), now, 1);
+    expect(loadState(JSON.parse(JSON.stringify(saved)), today)).toEqual(saved);
   });
 
-  it('moves progress from the old gated set-up to the matching new step, keeping items', () => {
+  it('moves progress from older set-ups to Today, keeping items and numbers', () => {
     const items = [{ choice: 'travel', name: 'Travel', costCents: 100 }];
-    expect(loadState({ step: 'items', route: 'items', items, numbers: { payCents: 1, fixedCents: 1 } }, today).step).toBe('start');
-    expect(loadState({ step: 'prices', route: 'items', items }, today).step).toBe('numbers');
-    const done = loadState({ step: 'done', route: 'items', items, numbers: { payCents: 1, fixedCents: 1 } }, today);
-    expect(done).toMatchObject({ step: 'today', setupDate: today });
+    const numbers = { payCents: 1, fixedCents: 1 };
+    const done = loadState({ step: 'done', route: 'items', items, numbers }, today);
+    expect(done).toMatchObject({ step: 'today', entry: 'pay', startEntry: 'pay', route: 'items', goalsAnswered: true, setupDate: today, savingsChecks: [] });
     expect(done.items[0]).toMatchObject({ id: 'travel', costCents: 100, useFixedCostMonths: false });
+    expect(loadState({ step: 'prices', route: 'items', items }, today).step).toBe('numbers');
+  });
+
+  it('turns an unanswered goals screen from the old set-up into the goal card, keeping the picks', () => {
+    const saved = { step: 'start', route: 'items', items: [{ choice: 'travel', name: 'Travel' }], numbers: { payCents: 1, fixedCents: 1 }, setupDate: today };
+    expect(loadState(saved, today)).toMatchObject({ step: 'today', route: null, goalsAnswered: false, items: [{ id: 'travel' }] });
+  });
+
+  it('keeps an answered Today from the previous build as answered', () => {
+    const saved = { step: 'today', route: 'none', items: [], numbers: { payCents: 1, fixedCents: 1 }, setupDate: today, welcomeSeen: true };
+    expect(loadState(saved, today)).toMatchObject({ route: 'none', goalsAnswered: true, welcomeSeen: true });
   });
 
   it('sends people back to their numbers if a later step was reached without them', () => {
