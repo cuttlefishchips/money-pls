@@ -41,7 +41,6 @@ import { buildToday, spentThisMonth } from './today/model';
 import { addGoalScreen, editGoalScreen, startOverScreen, todayScreen } from './today/screen';
 import { startOver } from './start-over';
 import {
-  canSaveSpend,
   caughtUpDate,
   dayLabel,
   daysBefore,
@@ -50,14 +49,17 @@ import {
   isoDate,
   isStale,
   newSpendDraft,
+  parseSpendBlock,
+  parseSpendLine,
   parseSpendText,
-  spendFromDraft,
+  spendFromLine,
   SPENDS_CHANGED_KEY,
   spendsThisMonth,
   spendText,
   type SpendDraft,
+  type SpendLine,
 } from './spends';
-import { spendScreen } from './today/spend-screen';
+import { reviewSpendsScreen, spendScreen } from './today/spend-screen';
 
 export interface AppContext {
   root: HTMLElement;
@@ -73,7 +75,7 @@ type View =
   | { kind: 'add' }
   | { kind: 'numbers'; before: AppState; mode: 'pay' | 'budget' }
   | { kind: 'start-over' }
-  | { kind: 'spend'; draft: SpendDraft; savedMessage: string | null }
+  | { kind: 'spend'; draft: SpendDraft; savedMessage: string | null; reviewing: boolean }
   | { kind: 'usage'; events: UsageEvent[]; skipped: number; savedNote: string | null };
 
 export function changeNotice(
@@ -221,49 +223,82 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
       const { draft, savedMessage } = view;
       const todayIso = isoDate(now);
       const yesterdayIso = isoDate(daysBefore(now, 1));
-      const refresh = () => {
-        if (view.kind !== 'spend') return;
-        const enabled = canSaveSpend(view.draft, now);
-        root.querySelectorAll<HTMLButtonElement>('.actions .button').forEach((b) => {
-          if (b.textContent !== 'Cancel') b.disabled = !enabled;
-        });
-        const preview = root.querySelector('.parse-preview');
-        if (preview) preview.textContent = spendPreview(view.draft.text);
+      const lines = parseSpendBlock(draft.text, now, draft.date);
+      const labelFor = (iso: string) => {
+        const [year, month, day] = iso.split('-').map(Number);
+        const label = dayLabel({ year: year!, month: month!, day: day! }, now);
+        return label.charAt(0).toUpperCase() + label.slice(1);
       };
-      const updateDraft = (change: Partial<SpendDraft>, rerender = false) => {
+      const updateDraft = (change: Partial<SpendDraft>) => {
         if (view.kind !== 'spend') return;
-        view = { kind: 'spend', draft: { ...view.draft, ...change }, savedMessage: view.savedMessage };
-        if (rerender) render(false);
-        else refresh();
+        const field = root.querySelector<HTMLTextAreaElement | HTMLInputElement>('textarea, input[type=text]');
+        const caret = field && document.activeElement === field ? [field.selectionStart, field.selectionEnd] : null;
+        view = { ...view, draft: { ...view.draft, ...change } };
+        render(false);
+        const next = root.querySelector<HTMLTextAreaElement | HTMLInputElement>('textarea, input[type=text]');
+        if (caret && next) {
+          next.focus();
+          next.setSelectionRange(caret[0] ?? null, caret[1] ?? null);
+        }
       };
-      const persist = async (): Promise<Spend | null> => {
-        if (view.kind !== 'spend' || !canSaveSpend(view.draft, now)) return null;
-        const current = view.draft;
-        const existing = spends.find((s) => s.id === current.id);
-        const spend = spendFromDraft(current, existing, () => crypto.randomUUID(), Date.now());
+      const saveLine = async (line: Extract<SpendLine, { ok: true }>, id: string | null): Promise<Spend> => {
+        const existing = spends.find((s) => s.id === id);
+        const spend = spendFromLine(line, id, existing, () => crypto.randomUUID(), Date.now());
         await store.putSpend(spend);
         spends = [...spends.filter((s) => s.id !== spend.id), spend];
-        await markSpendsChanged();
         if (!existing) await logger.log('spend_logged');
         return spend;
       };
+      const persist = async (): Promise<Spend | null> => {
+        if (view.kind !== 'spend') return null;
+        const line = parseSpendLine(view.draft.text, now, view.draft.date);
+        if (!line.ok) return null;
+        const spend = await saveLine(line, view.draft.id);
+        await markSpendsChanged();
+        return spend;
+      };
+
+      if (view.reviewing) {
+        return reviewSpendsScreen(lines, labelFor, {
+          back: () => {
+            if (view.kind === 'spend') go(state, { ...view, reviewing: false });
+          },
+          confirm: async () => {
+            if (view.kind !== 'spend') return;
+            const readable = lines.filter((line): line is Extract<SpendLine, { ok: true }> => line.ok);
+            for (const line of readable) await saveLine(line, null);
+            if (readable.length) await markSpendsChanged();
+            const flagged = lines.filter((line) => !line.ok);
+            const saved = `Saved ${readable.length} ${readable.length === 1 ? 'spend' : 'spends'}.`;
+            if (!flagged.length) {
+              notice = saved;
+              go(state, { kind: 'today' });
+              return;
+            }
+            go(state, {
+              kind: 'spend',
+              draft: { ...view.draft, text: flagged.map((line) => line.line).join('\n') },
+              savedMessage: `${saved} The ${flagged.length === 1 ? 'line below needs' : 'lines below need'} fixing before ${flagged.length === 1 ? 'it' : 'they'} can be saved.`,
+              reviewing: false,
+            });
+          },
+        });
+      }
+
       return spendScreen(
         {
           draft,
           today: todayIso,
           yesterday: yesterdayIso,
           min: earliestSpendDate(now),
-          canSave: canSaveSpend(draft, now),
-          preview: spendPreview(draft.text),
+          lines,
+          dateLabel: labelFor,
           savedMessage,
         },
         {
           setText: (text) => updateDraft({ text }),
           chooseDate: (choice) =>
-            updateDraft(
-              choice === 'pick' ? { picking: true } : { picking: false, date: choice === 'today' ? todayIso : yesterdayIso },
-              true,
-            ),
+            updateDraft(choice === 'pick' ? { picking: true } : { picking: false, date: choice === 'today' ? todayIso : yesterdayIso }),
           setDate: (date) => updateDraft({ date }),
           cancel: () => go(state, { kind: 'today' }),
           save: async () => {
@@ -272,10 +307,13 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
           saveAndAddAnother: async () => {
             const saved = await persist();
             if (!saved || view.kind !== 'spend') return;
-            const next = { ...newSpendDraft(now, saved.date), picking: view.draft.picking };
-            view = { kind: 'spend', draft: next, savedMessage: `Saved ${spendPreview(spendText(saved))}.` };
+            const next = { ...newSpendDraft(now, view.draft.date), picking: view.draft.picking };
+            view = { kind: 'spend', draft: next, savedMessage: `Saved ${spendPreview(spendText(saved))}.`, reviewing: false };
             render(false);
-            root.querySelector<HTMLInputElement>('input[type=text]')?.focus();
+            root.querySelector<HTMLTextAreaElement>('textarea')?.focus();
+          },
+          review: () => {
+            if (view.kind === 'spend') go(state, { ...view, reviewing: true });
           },
           remove: async () => {
             if (!draft.id) return;
@@ -414,10 +452,10 @@ export async function runApp({ root, store, logger, budgetViews, code }: AppCont
           checkResultShown = false;
           render(false);
         },
-        logSpend: () => go(state, { kind: 'spend', draft: newSpendDraft(today()), savedMessage: null }),
+        logSpend: () => go(state, { kind: 'spend', draft: newSpendDraft(today()), savedMessage: null, reviewing: false }),
         openSpend: (id) => {
           const spend = spends.find((s) => s.id === id);
-          if (spend) go(state, { kind: 'spend', draft: draftFromSpend(spend, today()), savedMessage: null });
+          if (spend) go(state, { kind: 'spend', draft: draftFromSpend(spend, today()), savedMessage: null, reviewing: false });
         },
         dismissWelcome: () => {
           showWelcome = false;

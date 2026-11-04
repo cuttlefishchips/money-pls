@@ -1,4 +1,4 @@
-import type { CalDate } from '../calc/dates';
+import { daysInMonth, type CalDate } from '../calc/dates';
 import { formatDollarsInput, parseDollars } from '../calc/money';
 import { DEFAULT_OWNER, type Spend } from '../storage';
 
@@ -32,6 +32,88 @@ export function parseSpendText(text: string): ParsedSpend {
   return { amountCents: null, note: cleaned.slice(0, NOTE_MAX) };
 }
 
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const MONTH_FULL = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+const MONTH_WORD = [...MONTH_FULL, 'sept', ...MONTHS].join('|');
+const RELATIVE_DATE = /^(today|yesterday)(?:\s+|$)(.*)$/i;
+const NAMED_DATE = new RegExp(String.raw`^(\d{1,2})\s+(${MONTH_WORD})(?![a-z])\s*(.*)$`, 'i');
+const SLASH_DATE = /^(\d{1,2})\/(\d{1,2})(?:\s+|$)(.*)$/;
+
+export type LineIssue = 'no-amount' | 'zero-amount' | 'no-such-date' | 'too-old' | 'future';
+
+export const LINE_ISSUE_TEXT: Record<LineIssue, string> = {
+  'no-amount': 'No amount found. Add one, like 5.50.',
+  'zero-amount': 'The amount needs to be more than S$0.',
+  'no-such-date': "That date doesn't exist.",
+  'too-old': 'More than 31 days ago, so it can\'t be logged.',
+  future: "That date hasn't happened yet.",
+};
+
+export type SpendLine =
+  | { line: string; ok: true; date: string; dateFromLine: boolean; amountCents: number; note: string }
+  | { line: string; ok: false; issue: LineIssue };
+
+interface LineDate {
+  date: CalDate | null;
+  rest: string;
+}
+
+function monthNumber(word: string): number {
+  const w = word.toLowerCase();
+  if (w === 'sept') return 9;
+  const full = MONTH_FULL.indexOf(w);
+  return full >= 0 ? full + 1 : MONTHS.indexOf(w) + 1;
+}
+
+function mostRecentPast(day: number, month: number, today: CalDate): CalDate | 'no-such-date' {
+  if (month < 1 || month > 12 || day < 1) return 'no-such-date';
+  const notYet = month > today.month || (month === today.month && day > today.day);
+  const year = notYet ? today.year - 1 : today.year;
+  return day > daysInMonth(year, month) ? 'no-such-date' : { year, month, day };
+}
+
+export function readLineDate(text: string, today: CalDate): LineDate | 'no-such-date' {
+  const relative = RELATIVE_DATE.exec(text);
+  if (relative) {
+    const date = relative[1]!.toLowerCase() === 'today' ? today : daysBefore(today, 1);
+    return { date, rest: relative[2]! };
+  }
+  const named = NAMED_DATE.exec(text);
+  const slash = named ? null : SLASH_DATE.exec(text);
+  const match = named ?? slash;
+  if (!match) return { date: null, rest: text };
+  const month = named ? monthNumber(named[2]!) : Number(slash![2]);
+  const date = mostRecentPast(Number(match[1]), month, today);
+  return date === 'no-such-date' ? date : { date, rest: match[3]! };
+}
+
+function parseIso(iso: string): CalDate | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return m ? { year: Number(m[1]), month: Number(m[2]), day: Number(m[3]) } : null;
+}
+
+export function parseSpendLine(line: string, today: CalDate, fallbackDate: string): SpendLine {
+  const cleaned = line.trim().replace(/\s+/g, ' ');
+  const dated = readLineDate(cleaned, today);
+  if (dated === 'no-such-date') return { line: cleaned, ok: false, issue: 'no-such-date' };
+  const date = dated.date ?? parseIso(fallbackDate);
+  if (!date) return { line: cleaned, ok: false, issue: 'no-such-date' };
+  const iso = isoDate(date);
+  if (iso > isoDate(today)) return { line: cleaned, ok: false, issue: 'future' };
+  if (iso < earliestSpendDate(today)) return { line: cleaned, ok: false, issue: 'too-old' };
+  const { amountCents, note } = parseSpendText(dated.rest);
+  if (amountCents === null) return { line: cleaned, ok: false, issue: 'no-amount' };
+  if (amountCents === 0) return { line: cleaned, ok: false, issue: 'zero-amount' };
+  return { line: cleaned, ok: true, date: iso, dateFromLine: dated.date !== null, amountCents, note };
+}
+
+export function parseSpendBlock(text: string, today: CalDate, fallbackDate: string): SpendLine[] {
+  return text
+    .split(/\r?\n/)
+    .filter((line) => line.trim() !== '')
+    .map((line) => parseSpendLine(line, today, fallbackDate));
+}
+
 export function isoDate(date: CalDate): string {
   return `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
 }
@@ -63,28 +145,31 @@ export function draftFromSpend(spend: Spend, today: CalDate): SpendDraft {
 }
 
 export function canSaveSpend(draft: SpendDraft, today: CalDate): boolean {
-  const { amountCents } = parseSpendText(draft.text);
-  const validDate = /^\d{4}-\d{2}-\d{2}$/.test(draft.date);
-  return (
-    amountCents !== null &&
-    amountCents > 0 &&
-    validDate &&
-    draft.date >= earliestSpendDate(today) &&
-    draft.date <= isoDate(today)
-  );
+  const lines = parseSpendBlock(draft.text, today, draft.date);
+  return lines.length === 1 ? lines[0]!.ok : lines.some((line) => line.ok);
 }
 
-export function spendFromDraft(draft: SpendDraft, existing: Spend | undefined, newId: () => string, now: number): Spend {
-  const { amountCents, note } = parseSpendText(draft.text);
-  if (amountCents === null) throw new Error('A spend needs an amount');
+export function spendFromLine(
+  line: Extract<SpendLine, { ok: true }>,
+  id: string | null,
+  existing: Spend | undefined,
+  newId: () => string,
+  now: number,
+): Spend {
   const spend: Spend = {
-    id: draft.id ?? newId(),
+    id: id ?? newId(),
     owner: existing?.owner ?? DEFAULT_OWNER,
-    amountCents,
-    date: draft.date,
+    amountCents: line.amountCents,
+    date: line.date,
     loggedAt: existing?.loggedAt ?? now,
   };
-  return note ? { ...spend, note } : spend;
+  return line.note ? { ...spend, note: line.note } : spend;
+}
+
+export function spendFromDraft(draft: SpendDraft, existing: Spend | undefined, newId: () => string, now: number, today: CalDate): Spend {
+  const line = parseSpendLine(draft.text, today, draft.date);
+  if (!line.ok) throw new Error('A spend needs an amount and a date in the last 31 days');
+  return spendFromLine(line, draft.id, existing, newId, now);
 }
 
 export function spendsThisMonth(spends: Spend[], today: CalDate): Spend[] {
